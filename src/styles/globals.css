@@ -1,0 +1,158 @@
+:root {
+    font-family: "Inter", "SF Pro Display", system-ui, sans-serif;
+    background: #2a2a2a;
+    color: #111;
+}
+
+body {
+    margin: 0;
+    background: #2a2a2a;
+}
+
+.auth-shell {
+    min-height: 100vh;
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.auth-header h1 {
+    color: #fff;
+    font-size: 32px;
+    margin: 0 0 8px;
+}
+
+.stepper {
+    display: flex;
+    gap: 12px;
+}
+
+.chip {
+    color: #bbb;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 14px;
+}
+
+.chip--active {
+    color: #fff;
+}
+
+.auth-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+    width: min(100%, 1040px);
+    margin-inline: auto;
+}
+
+.auth-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+}
+
+.auth-card h2 {
+    margin-top: 0;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.input-group span {
+    font-size: 14px;
+    color: #444;
+}
+
+.input-group input,
+.auth-card select {
+    border: 1px solid #d7d7d7;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 15px;
+    background: #fafafa;
+}
+
+.btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #8f8f8f;
+    color: #fff;
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.helper-text {
+    color: #6b6b6b;
+    font-size: 13px;
+    margin: -8px 0 24px;
+}
+
+.text-button {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 16px;
+}
+
+.otp-boxes {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+    gap: 12px;
+}
+
+.otp-boxes input {
+    width: 48px;
+    height: 56px;
+    text-align: center;
+    font-size: 24px;
+    border-radius: 12px;
+    border: 1px solid #dedede;
+    background: #fafafa;
+}
+.selection-card {
+    width: min(360px, 90vw);
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 28px;
+    padding: 40px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    text-align: center;
+}
+
+.btn-secondary {
+    background: #f2f2f2;
+    color: #444;
+    border: 1px solid #d8d8d8;
+}
+
+.subheading {
+    color: #bcbcbc;
+    margin: 0;
+}
