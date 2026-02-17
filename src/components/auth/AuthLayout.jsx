@@ -14,7 +14,6 @@ export default function AuthLayout() {
         email: "",
         name: "",
         phone: "",
-        dateOfBirth: "",
         gender: "",
     });
     const [otp, setOtp] = useState(new Array(6).fill(""));
