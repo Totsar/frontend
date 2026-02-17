@@ -1,12 +1,15 @@
 // src/components/layout/Header.jsx
 import { NavLink } from "react-router-dom";
+import logo from "../../assets/logo.png";
 
 const Header = () => {
     return (
         <header className="site-header">
             <div className="container header-inner">
                 <div className="brand">
-                    <div className="brand-logo">LF</div>
+                    <div className="brand-logo">
+                        <img src={logo} alt="Brand logo" style={{ width: "41px", height: "auto" }} />
+                    </div>
                     <div className="brand-text">
                         <strong>Lost & Found</strong>
                         <small>Campus lost-and-found platform</small>
