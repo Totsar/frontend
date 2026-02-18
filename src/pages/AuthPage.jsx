@@ -2,18 +2,22 @@
 import { useState } from "react";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../services/authService";
 
 const AuthPage = () => {
+    const navigate = useNavigate();
+    const { login, register } = useAuth();
+
     const [mode, setMode] = useState("login"); // "login" | "register"
     const [step, setStep] = useState(1);       // 1=email, 2=otp, 3=info
 
-    // Login form
     const [loginData, setLoginData] = useState({
         email: "",
         password: "",
     });
 
-    // Register form
     const [registerEmail, setRegisterEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [registerData, setRegisterData] = useState({
@@ -24,35 +28,77 @@ const AuthPage = () => {
         confirmPassword: "",
     });
 
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+
     const switchMode = (nextMode) => {
         setMode(nextMode);
         setStep(1);
+        setError("");
     };
 
-    const handleLoginSubmit = (e) => {
+    const handleRegisterEmailSubmit = async (e) => {
         e.preventDefault();
-        // TODO: connect to API
-        console.log("Login:", loginData);
-    };
-
-    const handleRegisterEmailSubmit = (e) => {
-        e.preventDefault();
-        // TODO: send OTP
         if (!registerEmail.trim()) return;
-        setStep(2);
+
+        setError("");
+        setLoading(true);
+
+        try {
+            await authService.requestOtp(registerEmail.trim());
+            setStep(2);
+        } catch (err) {
+            setError("Failed to send OTP. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLoginSubmit = async (e) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            await login(loginData.email, loginData.password);
+            navigate("/");
+        } catch (err) {
+            setError("Invalid email or password.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleOtpSubmit = (e) => {
         e.preventDefault();
-        // TODO: verify OTP
         if (otp.length !== 6) return;
         setStep(3);
     };
 
-    const handleRegisterSubmit = (e) => {
+    const handleRegisterSubmit = async (e) => {
         e.preventDefault();
-        // TODO: send register data
-        console.log("Register:", { registerEmail, otp, ...registerData });
+        setError("");
+
+        if (registerData.password !== registerData.confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await register({
+                firstName: registerData.firstName,
+                lastName: registerData.lastName,
+                email: registerEmail,
+                phone: registerData.phone,
+                password: registerData.password,
+                otp: otp
+            });
+            navigate("/");
+        } catch (err) {
+            setError("Registration failed.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -76,6 +122,8 @@ const AuthPage = () => {
                                 Register
                             </button>
                         </div>
+
+                        {error && <div className="auth-error">{error}</div>}
 
                         {mode === "login" && (
                             <form className="auth-form" onSubmit={handleLoginSubmit}>
@@ -104,8 +152,8 @@ const AuthPage = () => {
                                     required
                                 />
 
-                                <button className="btn primary" type="submit">
-                                    Log in
+                                <button className="btn primary" type="submit" disabled={loading}>
+                                    {loading ? "Logging in..." : "Log in"}
                                 </button>
                             </form>
                         )}
@@ -126,8 +174,8 @@ const AuthPage = () => {
                                             required
                                         />
 
-                                        <button className="btn primary" type="submit">
-                                            Send OTP
+                                        <button className="btn primary" type="submit" disabled={loading}>
+                                            {loading ? "Sending..." : "Send OTP"}
                                         </button>
                                     </form>
                                 )}
@@ -151,11 +199,7 @@ const AuthPage = () => {
                                         />
 
                                         <div className="auth-row">
-                                            <button
-                                                className="btn ghost"
-                                                type="button"
-                                                onClick={() => setStep(1)}
-                                            >
+                                            <button className="btn ghost" type="button" onClick={() => setStep(1)}>
                                                 Back
                                             </button>
                                             <button className="btn primary" type="submit">
@@ -235,15 +279,11 @@ const AuthPage = () => {
                                         />
 
                                         <div className="auth-row">
-                                            <button
-                                                className="btn ghost"
-                                                type="button"
-                                                onClick={() => setStep(2)}
-                                            >
+                                            <button className="btn ghost" type="button" onClick={() => setStep(2)}>
                                                 Back
                                             </button>
-                                            <button className="btn primary" type="submit">
-                                                Register
+                                            <button className="btn primary" type="submit" disabled={loading}>
+                                                {loading ? "Registering..." : "Register"}
                                             </button>
                                         </div>
                                     </form>
