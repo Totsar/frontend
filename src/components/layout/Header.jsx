@@ -19,6 +19,9 @@ const Header = () => {
                 <nav className="nav">
                     <NavLink to="/map" className="nav-link">Map</NavLink>
                     <NavLink to="/lost" className="nav-link">Lost Items</NavLink>
+                    <NavLink to="/chatbot" className="nav-link">
+                        Chatbot
+                    </NavLink>
                     <NavLink to="/auth" className="nav-link">Log in / Sign up</NavLink>
                 </nav>
             </div>

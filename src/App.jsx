@@ -3,6 +3,7 @@ import MapPage from "./pages/MapPage";
 import LostPage from "./pages/LostPage";
 import AuthPage from "./pages/AuthPage";
 import ItemFormPage from "./pages/ItemFormPage";
+import ChatbotPage from "./pages/ChatbotPage";
 
 const App = () => {
     return (
@@ -13,6 +14,7 @@ const App = () => {
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/items/new" element={<ItemFormPage mode="create" />} />
             <Route path="/items/:id/edit" element={<ItemFormPage mode="edit" />} />
+            <Route path="/chatbot" element={<ChatbotPage />} />
         </Routes>
     );
 };
