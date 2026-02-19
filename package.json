@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "docker:build": "docker build -t totsar-frontend .",
+    "docker:run": "docker run --rm -p 8080:80 totsar-frontend",
+    "docker:up": "docker compose up --build"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
