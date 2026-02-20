@@ -1,5 +1,5 @@
 // src/pages/LostPage.jsx
-// import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
@@ -21,6 +21,9 @@ const resolveImageUrl = (imageUrl) => {
     if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
     return `${API_BASE}${imageUrl}`;
 };
+
+const formatCoordinate = (value) =>
+    Number.isFinite(Number(value)) ? Number(value).toFixed(6) : "-";
 
 const LostPage = () => {
     const navigate = useNavigate();
@@ -240,8 +243,16 @@ const LostPage = () => {
                         </section>
 
                         <section className="modal-section">
-                            <h4>Location</h4>
+                            <h4>Location text</h4>
                             <p>{selectedItem.location || "-"}</p>
+                        </section>
+
+                        <section className="modal-section">
+                            <h4>Coordinates</h4>
+                            <div className="info-box">
+                                <div>Latitude: {formatCoordinate(selectedItem.latitude)}</div>
+                                <div>Longitude: {formatCoordinate(selectedItem.longitude)}</div>
+                            </div>
                         </section>
 
                         <section className="modal-section">

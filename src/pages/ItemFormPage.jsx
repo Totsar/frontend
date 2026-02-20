@@ -3,8 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
+import MapView from "../components/map/MapView";
 import { useAuth } from "../context/AuthContext";
 import { itemService } from "../services/itemService";
+
+const DEFAULT_CENTER = [35.7036, 51.3515];
 
 const parseTagsInput = (input) =>
     input
@@ -23,6 +26,8 @@ const ItemFormPage = ({ mode }) => {
         location: "",
         description: "",
         tagsInput: "",
+        latitude: null,
+        longitude: null,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +54,8 @@ const ItemFormPage = ({ mode }) => {
                     location: item.location || "",
                     description: item.description || "",
                     tagsInput: (item.tags || []).join(", "),
+                    latitude: Number.isFinite(Number(item.latitude)) ? Number(item.latitude) : null,
+                    longitude: Number.isFinite(Number(item.longitude)) ? Number(item.longitude) : null,
                 });
             } catch (err) {
                 if (cancelled) return;
@@ -70,6 +77,10 @@ const ItemFormPage = ({ mode }) => {
 
     const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
+    const handleCoordinatePick = ({ latitude, longitude }) => {
+        setForm((prev) => ({ ...prev, latitude, longitude }));
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         if (isSaving) return;
@@ -84,10 +95,17 @@ const ItemFormPage = ({ mode }) => {
             location: form.location.trim(),
             description: form.description.trim(),
             tags: parseTagsInput(form.tagsInput),
+            latitude: form.latitude,
+            longitude: form.longitude,
         };
 
         if (!payload.title || !payload.location) {
             setError("Title and location are required.");
+            return;
+        }
+
+        if (!Number.isFinite(payload.latitude) || !Number.isFinite(payload.longitude)) {
+            setError("Please choose item coordinates by clicking the map pin location.");
             return;
         }
 
@@ -108,6 +126,15 @@ const ItemFormPage = ({ mode }) => {
         }
     };
 
+    const selectedPosition =
+        Number.isFinite(form.latitude) && Number.isFinite(form.longitude)
+            ? { latitude: form.latitude, longitude: form.longitude }
+            : null;
+
+    const mapCenter = selectedPosition
+        ? [selectedPosition.latitude, selectedPosition.longitude]
+        : DEFAULT_CENTER;
+
     return (
         <div className="page">
             <Header />
@@ -117,7 +144,7 @@ const ItemFormPage = ({ mode }) => {
                     <div className="form-header">
                         <h1 className="page-title">{pageTitle}</h1>
                         <p className="page-subtitle">
-                            Fill out the form using backend item fields
+                            Write a location description and select exact coordinates on the map
                         </p>
                     </div>
 
@@ -140,7 +167,7 @@ const ItemFormPage = ({ mode }) => {
                         </div>
 
                         <div className="form-row">
-                            <label>Location</label>
+                            <label>Location description</label>
                             <input
                                 type="text"
                                 value={form.location}
@@ -149,6 +176,33 @@ const ItemFormPage = ({ mode }) => {
                                 required
                                 disabled={isLoading || isSaving}
                             />
+                        </div>
+
+                        <div className="form-row">
+                            <label>Map coordinates (click map to drop pin)</label>
+                            <MapView
+                                key={
+                                    selectedPosition
+                                        ? `${selectedPosition.latitude}-${selectedPosition.longitude}`
+                                        : "default"
+                                }
+                                items={[]}
+                                center={mapCenter}
+                                zoom={16}
+                                selectable
+                                selectedPosition={selectedPosition}
+                                onSelectPosition={handleCoordinatePick}
+                            />
+                            <div className="coords-box">
+                                <div>
+                                    <strong>Latitude:</strong>{" "}
+                                    {Number.isFinite(form.latitude) ? form.latitude.toFixed(6) : "not selected"}
+                                </div>
+                                <div>
+                                    <strong>Longitude:</strong>{" "}
+                                    {Number.isFinite(form.longitude) ? form.longitude.toFixed(6) : "not selected"}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="form-row">

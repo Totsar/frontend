@@ -581,6 +581,22 @@ a {
     gap: 10px;
 }
 
+.coords-box {
+    margin-top: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: #334155;
+    display: grid;
+    gap: 6px;
+}
+
+.form-page .map-container {
+    height: 360px;
+}
+
 .map-wrap {
     background: #fff;
     border-radius: 16px;
