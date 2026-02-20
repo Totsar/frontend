@@ -53,6 +53,22 @@ a {
     margin: 0 0 18px;
 }
 
+.page-error {
+    background: #4b1c1c;
+    border: 1px solid #7f1d1d;
+    color: #fecaca;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
+.page-note {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
 .site-header {
     background: var(--header);
     color: #fff;
@@ -371,6 +387,13 @@ a {
     font-weight: 800;
 }
 
+.item-thumb-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
 .item-body {
     padding-top: 10px;
 }
@@ -405,6 +428,9 @@ a {
 
 .item-tags {
     margin: 8px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .tag {
