@@ -259,6 +259,11 @@ a {
     font-weight: 600;
 }
 
+.btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 .btn.primary {
     margin-top: 10px;
     background: var(--accent);
@@ -615,6 +620,10 @@ a {
     margin-bottom: 12px;
 }
 
+.chatbot-input:disabled {
+    opacity: 0.75;
+}
+
 .btn.full {
     width: 100%;
 }
@@ -664,6 +673,37 @@ a {
     color: white;
     align-self: flex-end;
 }
+
+.chat-message-meta {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
+.chat-message.typing {
+    opacity: 0.85;
+}
+
+.chat-error {
+    background: #4b1c1c;
+    border: 1px solid #7f1d1d;
+    color: #fecaca;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 960px) {
+    .chatbot-split {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-window {
+        height: 300px;
+    }
+}
+
 .auth-error {
     background: #4b1c1c;
     border: 1px solid #7f1d1d;
