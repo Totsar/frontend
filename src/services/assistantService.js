@@ -11,7 +11,7 @@ export const assistantService = {
         let payload = null;
         try {
             payload = await res.json();
-        } catch (_err) {
+        } catch {
             payload = null;
         }
 

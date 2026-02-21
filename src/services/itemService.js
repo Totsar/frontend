@@ -1,40 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
-const buildErrorMessage = (payload, fallback) => {
-    if (!payload) return fallback;
-
-    if (typeof payload.detail === "string" && payload.detail.trim()) {
-        return payload.detail;
-    }
-
-    for (const value of Object.values(payload)) {
-        if (Array.isArray(value) && value.length > 0) {
-            return String(value[0]);
-        }
-        if (typeof value === "string" && value.trim()) {
-            return value;
-        }
-    }
-
-    return fallback;
-};
-
-const request = async (url, options = {}, fallbackError = "Request failed") => {
-    const res = await fetch(url, options);
-
-    let payload = null;
-    try {
-        payload = await res.json();
-    } catch (_err) {
-        payload = null;
-    }
-
-    if (!res.ok) {
-        throw new Error(buildErrorMessage(payload, fallbackError));
-    }
-
-    return payload;
-};
+import { authenticatedRequestJson, requestJson } from "./apiClient";
 
 export const itemService = {
     async listItems(params = {}) {
@@ -45,40 +9,60 @@ export const itemService = {
             }
         }
         const suffix = query.toString() ? `?${query}` : "";
-        return request(`${API_BASE}/api/item${suffix}`, {}, "Failed to load items");
+        return requestJson({
+            path: `/api/item${suffix}`,
+            fallbackError: "Failed to load items",
+        });
     },
 
     async getItem(itemId) {
-        return request(`${API_BASE}/api/item/${itemId}`, {}, "Failed to load item");
+        return requestJson({
+            path: `/api/item/${itemId}`,
+            fallbackError: "Failed to load item",
+        });
     },
 
-    async createItem(data, accessToken) {
-        return request(
-            `${API_BASE}/api/item`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify(data),
-            },
-            "Failed to create item"
-        );
+    async createItem(data) {
+        return authenticatedRequestJson({
+            path: "/api/item",
+            method: "POST",
+            body: data,
+            fallbackError: "Failed to create item",
+        });
     },
 
-    async updateItem(itemId, data, accessToken) {
-        return request(
-            `${API_BASE}/api/item/${itemId}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
-                },
-                body: JSON.stringify(data),
-            },
-            "Failed to update item"
-        );
+    async updateItem(itemId, data) {
+        return authenticatedRequestJson({
+            path: `/api/item/${itemId}`,
+            method: "PUT",
+            body: data,
+            fallbackError: "Failed to update item",
+        });
+    },
+
+    async createComment(itemId, text) {
+        return authenticatedRequestJson({
+            path: `/api/item/${itemId}/comment`,
+            method: "POST",
+            body: { text },
+            fallbackError: "Failed to create comment",
+        });
+    },
+
+    async updateComment(itemId, commentId, text) {
+        return authenticatedRequestJson({
+            path: `/api/item/${itemId}/comment/${commentId}`,
+            method: "PUT",
+            body: { text },
+            fallbackError: "Failed to update comment",
+        });
+    },
+
+    async deleteComment(itemId, commentId) {
+        await authenticatedRequestJson({
+            path: `/api/item/${itemId}/comment/${commentId}`,
+            method: "DELETE",
+            fallbackError: "Failed to delete comment",
+        });
     },
 };

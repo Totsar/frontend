@@ -516,6 +516,43 @@ a {
     padding: 10px;
 }
 
+.comment-error {
+    background: #4b1c1c;
+    border: 1px solid #7f1d1d;
+    color: #fecaca;
+    padding: 8px 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.comment-editor textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 76px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    font: inherit;
+}
+
+.comment-editor.inline textarea {
+    background: #fff;
+}
+
+.comment-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
 .comment-head {
     display: flex;
     justify-content: space-between;

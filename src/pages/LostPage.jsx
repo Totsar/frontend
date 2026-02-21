@@ -37,11 +37,23 @@ const LostPage = () => {
     const [selectedItem, setSelectedItem] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [commentDraft, setCommentDraft] = useState("");
+    const [commentActionError, setCommentActionError] = useState("");
+    const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editingCommentText, setEditingCommentText] = useState("");
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(query), 300);
         return () => clearTimeout(timer);
     }, [query]);
+
+    useEffect(() => {
+        setCommentActionError("");
+        setCommentDraft("");
+        setEditingCommentId(null);
+        setEditingCommentText("");
+    }, [selectedItem?.id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -85,6 +97,92 @@ const LostPage = () => {
 
     const canEditSelectedItem =
         !!selectedItem && !!auth?.user?.id && selectedItem.userId === auth.user.id;
+
+    const refreshSelectedItem = async (itemId) => {
+        const latest = await itemService.getItem(itemId);
+        setSelectedItem(latest);
+        setItems((prev) => prev.map((item) => (item.id === latest.id ? latest : item)));
+    };
+
+    const handleCreateComment = async () => {
+        if (!selectedItem) return;
+        if (!isLoggedIn || !auth?.accessToken) {
+            setCommentActionError("Please log in to comment.");
+            return;
+        }
+
+        const text = commentDraft.trim();
+        if (!text) {
+            setCommentActionError("Comment text cannot be empty.");
+            return;
+        }
+
+        setCommentActionError("");
+        setIsCommentSubmitting(true);
+        try {
+            await itemService.createComment(selectedItem.id, text);
+            setCommentDraft("");
+            await refreshSelectedItem(selectedItem.id);
+        } catch (err) {
+            const detail = err instanceof Error ? err.message : "Failed to create comment";
+            setCommentActionError(detail);
+        } finally {
+            setIsCommentSubmitting(false);
+        }
+    };
+
+    const startEditingComment = (comment) => {
+        setCommentActionError("");
+        setEditingCommentId(comment.id);
+        setEditingCommentText(comment.text || "");
+    };
+
+    const cancelEditingComment = () => {
+        setEditingCommentId(null);
+        setEditingCommentText("");
+    };
+
+    const handleUpdateComment = async (commentId) => {
+        if (!selectedItem || !auth?.accessToken) return;
+
+        const text = editingCommentText.trim();
+        if (!text) {
+            setCommentActionError("Comment text cannot be empty.");
+            return;
+        }
+
+        setCommentActionError("");
+        setIsCommentSubmitting(true);
+        try {
+            await itemService.updateComment(selectedItem.id, commentId, text);
+            cancelEditingComment();
+            await refreshSelectedItem(selectedItem.id);
+        } catch (err) {
+            const detail = err instanceof Error ? err.message : "Failed to update comment";
+            setCommentActionError(detail);
+        } finally {
+            setIsCommentSubmitting(false);
+        }
+    };
+
+    const handleDeleteComment = async (commentId) => {
+        if (!selectedItem || !auth?.accessToken) return;
+
+        setCommentActionError("");
+        setIsCommentSubmitting(true);
+        try {
+            await itemService.deleteComment(selectedItem.id, commentId);
+            if (editingCommentId === commentId) {
+                cancelEditingComment();
+            }
+            await refreshSelectedItem(selectedItem.id);
+        } catch (err) {
+            const detail = err instanceof Error ? err.message : "Failed to delete comment";
+            setCommentActionError(detail);
+        } finally {
+            setIsCommentSubmitting(false);
+        }
+    };
 
     return (
         <div className="page">
@@ -265,6 +363,32 @@ const LostPage = () => {
 
                         <section className="modal-section">
                             <h4>Comments ({(selectedItem.comments || []).length})</h4>
+                            {commentActionError ? (
+                                <div className="comment-error">{commentActionError}</div>
+                            ) : null}
+                            <div className="comment-editor">
+                                <textarea
+                                    rows="3"
+                                    value={commentDraft}
+                                    onChange={(e) => setCommentDraft(e.target.value)}
+                                    placeholder={
+                                        isLoggedIn
+                                            ? "Write a comment..."
+                                            : "Log in to add a comment"
+                                    }
+                                    disabled={!isLoggedIn || isCommentSubmitting}
+                                />
+                                <div className="comment-editor-actions">
+                                    <button
+                                        className="btn primary"
+                                        type="button"
+                                        onClick={handleCreateComment}
+                                        disabled={!isLoggedIn || isCommentSubmitting}
+                                    >
+                                        {isCommentSubmitting ? "Saving..." : "Add comment"}
+                                    </button>
+                                </div>
+                            </div>
                             <div className="comments-list">
                                 {(selectedItem.comments || []).length ? (
                                     selectedItem.comments.map((comment) => (
@@ -273,7 +397,56 @@ const LostPage = () => {
                                                 <strong>User #{comment.userId}</strong>
                                                 <span>{formatDateTime(comment.createdAt)}</span>
                                             </div>
-                                            <p>{comment.text}</p>
+                                            {editingCommentId === comment.id ? (
+                                                <div className="comment-editor inline">
+                                                    <textarea
+                                                        rows="3"
+                                                        value={editingCommentText}
+                                                        onChange={(e) => setEditingCommentText(e.target.value)}
+                                                        disabled={isCommentSubmitting}
+                                                    />
+                                                    <div className="comment-editor-actions">
+                                                        <button
+                                                            className="btn primary"
+                                                            type="button"
+                                                            onClick={() => handleUpdateComment(comment.id)}
+                                                            disabled={isCommentSubmitting}
+                                                        >
+                                                            Save
+                                                        </button>
+                                                        <button
+                                                            className="btn ghost"
+                                                            type="button"
+                                                            onClick={cancelEditingComment}
+                                                            disabled={isCommentSubmitting}
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p>{comment.text}</p>
+                                            )}
+                                            {isLoggedIn && auth?.user?.id === comment.userId ? (
+                                                <div className="comment-actions">
+                                                    <button
+                                                        className="btn ghost"
+                                                        type="button"
+                                                        onClick={() => startEditingComment(comment)}
+                                                        disabled={isCommentSubmitting}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        className="btn ghost"
+                                                        type="button"
+                                                        onClick={() => handleDeleteComment(comment.id)}
+                                                        disabled={isCommentSubmitting}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     ))
                                 ) : (

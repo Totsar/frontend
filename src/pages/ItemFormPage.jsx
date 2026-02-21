@@ -113,9 +113,9 @@ const ItemFormPage = ({ mode }) => {
         setIsSaving(true);
         try {
             if (isEdit) {
-                await itemService.updateItem(id, payload, auth.accessToken);
+                await itemService.updateItem(id, payload);
             } else {
-                await itemService.createItem(payload, auth.accessToken);
+                await itemService.createItem(payload);
             }
             navigate("/lost");
         } catch (err) {
