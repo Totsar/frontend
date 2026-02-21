@@ -6,14 +6,21 @@ import Footer from "../components/layout/Footer";
 import MapView from "../components/map/MapView";
 import { useAuth } from "../context/AuthContext";
 import { itemService } from "../services/itemService";
+import tagOptions from "../data/tagOptions.json";
 
 const DEFAULT_CENTER = [35.7036, 51.3515];
 
-const parseTagsInput = (input) =>
-    input
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean);
+const normalizeTag = (tag) => tag.trim().toLowerCase();
+
+const uniqueTags = (tags) => {
+    const out = [];
+    for (const tag of tags) {
+        const normalized = normalizeTag(tag);
+        if (!normalized || out.includes(normalized)) continue;
+        out.push(normalized);
+    }
+    return out;
+};
 
 const ItemFormPage = ({ mode }) => {
     const navigate = useNavigate();
@@ -25,10 +32,11 @@ const ItemFormPage = ({ mode }) => {
         title: "",
         location: "",
         description: "",
-        tagsInput: "",
+        selectedTags: [],
         latitude: null,
         longitude: null,
     });
+    const [availableTags, setAvailableTags] = useState(() => uniqueTags(tagOptions));
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
@@ -53,10 +61,11 @@ const ItemFormPage = ({ mode }) => {
                     title: item.title || "",
                     location: item.location || "",
                     description: item.description || "",
-                    tagsInput: (item.tags || []).join(", "),
+                    selectedTags: uniqueTags(item.tags || []),
                     latitude: Number.isFinite(Number(item.latitude)) ? Number(item.latitude) : null,
                     longitude: Number.isFinite(Number(item.longitude)) ? Number(item.longitude) : null,
                 });
+                setAvailableTags((prev) => uniqueTags([...prev, ...(item.tags || [])]));
             } catch (err) {
                 if (cancelled) return;
                 const detail = err instanceof Error ? err.message : "Failed to load item";
@@ -81,6 +90,22 @@ const ItemFormPage = ({ mode }) => {
         setForm((prev) => ({ ...prev, latitude, longitude }));
     };
 
+    const handleToggleTag = (tag) => {
+        setForm((prev) => {
+            const normalized = normalizeTag(tag);
+            if (prev.selectedTags.includes(normalized)) {
+                return {
+                    ...prev,
+                    selectedTags: prev.selectedTags.filter((t) => t !== normalized),
+                };
+            }
+            return {
+                ...prev,
+                selectedTags: [...prev.selectedTags, normalized],
+            };
+        });
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         if (isSaving) return;
@@ -94,7 +119,7 @@ const ItemFormPage = ({ mode }) => {
             title: form.title.trim(),
             location: form.location.trim(),
             description: form.description.trim(),
-            tags: parseTagsInput(form.tagsInput),
+            tags: form.selectedTags,
             latitude: form.latitude,
             longitude: form.longitude,
         };
@@ -206,14 +231,27 @@ const ItemFormPage = ({ mode }) => {
                         </div>
 
                         <div className="form-row">
-                            <label>Tags (comma separated)</label>
-                            <input
-                                type="text"
-                                value={form.tagsInput}
-                                onChange={(e) => update("tagsInput", e.target.value)}
-                                placeholder="example: electronics, wallet, black"
-                                disabled={isLoading || isSaving}
-                            />
+                            <label>Tags</label>
+                            <p className="field-help">Select one or more tags from the list.</p>
+                            <div className="tag-selector">
+                                {availableTags.map((tag) => {
+                                    const checked = form.selectedTags.includes(tag);
+                                    return (
+                                        <label
+                                            key={tag}
+                                            className={`tag-option ${checked ? "selected" : ""}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                onChange={() => handleToggleTag(tag)}
+                                                disabled={isLoading || isSaving}
+                                            />
+                                            <span>{tag}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div className="form-row">

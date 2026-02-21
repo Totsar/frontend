@@ -612,6 +612,39 @@ a {
     border: 1px solid #d1d5db;
 }
 
+.field-help {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.tag-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.tag-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #f8fafc;
+    font-size: 0.9rem;
+    color: #111827;
+}
+
+.tag-option.selected {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.tag-option input {
+    accent-color: #2563eb;
+}
+
 .form-actions {
     display: flex;
     justify-content: flex-end;

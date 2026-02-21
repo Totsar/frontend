@@ -6,6 +6,7 @@ import Footer from "../components/layout/Footer";
 import MapView from "../components/map/MapView";
 import { useAuth } from "../context/AuthContext";
 import { itemService } from "../services/itemService";
+import tagOptions from "../data/tagOptions.json";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -25,18 +26,32 @@ const resolveImageUrl = (imageUrl) => {
 const formatCoordinate = (value) =>
     Number.isFinite(Number(value)) ? Number(value).toFixed(6) : "-";
 
+const uniqueTags = (tags) => {
+    const out = [];
+    for (const tag of tags) {
+        const normalized = String(tag || "").trim().toLowerCase();
+        if (!normalized || out.includes(normalized)) continue;
+        out.push(normalized);
+    }
+    return out;
+};
+
 const LostPage = () => {
     const navigate = useNavigate();
     const { auth, isLoggedIn } = useAuth();
     const [query, setQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [tagFilter, setTagFilter] = useState("");
+    const [debouncedTagFilter, setDebouncedTagFilter] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("");
+    const [debouncedOwnerFilter, setDebouncedOwnerFilter] = useState("");
     const [locationQuery, setLocationQuery] = useState("");
     const [items, setItems] = useState([]);
     const [selectedItem, setSelectedItem] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [error, setError] = useState("");
+    const [availableTags, setAvailableTags] = useState(() => uniqueTags(tagOptions));
     const [commentDraft, setCommentDraft] = useState("");
     const [commentActionError, setCommentActionError] = useState("");
     const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
@@ -49,6 +64,14 @@ const LostPage = () => {
     }, [query]);
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedTagFilter(tagFilter);
+            setDebouncedOwnerFilter(ownerFilter);
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [tagFilter, ownerFilter]);
+
+    useEffect(() => {
         setCommentActionError("");
         setCommentDraft("");
         setEditingCommentId(null);
@@ -57,7 +80,7 @@ const LostPage = () => {
 
     useEffect(() => {
         let cancelled = false;
-        const normalizedOwner = ownerFilter.trim();
+        const normalizedOwner = debouncedOwnerFilter.trim();
 
         const loadItems = async () => {
             setError("");
@@ -65,11 +88,15 @@ const LostPage = () => {
             try {
                 const data = await itemService.listItems({
                     search: debouncedQuery.trim(),
-                    tag: tagFilter.trim(),
+                    tag: debouncedTagFilter.trim(),
                     owner: /^\d+$/.test(normalizedOwner) ? normalizedOwner : "",
                 });
                 if (!cancelled) {
                     setItems(Array.isArray(data) ? data : []);
+                    const backendTags = Array.isArray(data)
+                        ? data.flatMap((item) => item.tags || [])
+                        : [];
+                    setAvailableTags((prev) => uniqueTags([...prev, ...backendTags]));
                 }
             } catch (err) {
                 if (cancelled) return;
@@ -78,6 +105,7 @@ const LostPage = () => {
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);
+                    setHasLoadedOnce(true);
                 }
             }
         };
@@ -87,7 +115,7 @@ const LostPage = () => {
         return () => {
             cancelled = true;
         };
-    }, [debouncedQuery, tagFilter, ownerFilter]);
+    }, [debouncedQuery, debouncedTagFilter, debouncedOwnerFilter]);
 
     const filteredItems = useMemo(() => {
         return items.filter((item) =>
@@ -207,7 +235,7 @@ const LostPage = () => {
                     </div>
 
                     {error ? <div className="page-error">{error}</div> : null}
-                    {isLoading ? <div className="page-note">Loading items...</div> : null}
+                    {!hasLoadedOnce && isLoading ? <div className="page-note">Loading items...</div> : null}
 
                     <div className="lost-controls">
                         <div className="search-box">
@@ -222,12 +250,17 @@ const LostPage = () => {
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label>Tag (backend filter)</label>
-                                <input
-                                    type="text"
-                                    placeholder="example: electronics"
+                                <select
                                     value={tagFilter}
                                     onChange={(e) => setTagFilter(e.target.value)}
-                                />
+                                >
+                                    <option value="">All tags</option>
+                                    {availableTags.map((tag) => (
+                                        <option key={tag} value={tag}>
+                                            {tag}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="filter-group">
