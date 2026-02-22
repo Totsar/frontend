@@ -47,7 +47,7 @@ const AuthPage = () => {
         try {
             await authService.requestOtp(registerEmail.trim());
             setStep(2);
-        } catch (err) {
+        } catch {
             setError("Failed to send OTP. Please try again.");
         } finally {
             setLoading(false);
@@ -61,7 +61,7 @@ const AuthPage = () => {
         try {
             await login(loginData.email, loginData.password);
             navigate("/");
-        } catch (err) {
+        } catch {
             setError("Invalid email or password.");
         } finally {
             setLoading(false);
@@ -94,7 +94,7 @@ const AuthPage = () => {
                 otp: otp
             });
             navigate("/");
-        } catch (err) {
+        } catch {
             setError("Registration failed.");
         } finally {
             setLoading(false);

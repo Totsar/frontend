@@ -1,90 +1,126 @@
 // src/pages/LostPage.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import MapView from "../components/map/MapView";
+import ItemCardsGrid from "../components/items/ItemCardsGrid";
+import ItemDetailModal from "../components/items/ItemDetailModal";
+import { useAuth } from "../context/AuthContext";
+import { itemService } from "../services/itemService";
+import tagOptions from "../data/tagOptions.json";
 
-const mockItems = [
-    {
-        id: 1,
-        name: "Apple",
-        status: "lost",
-        category: "Other",
-        location: "Riyahi Hall",
-        date: "2026-02-14",
-        description: "Green apple, left near the entrance.",
-        coords: [35.7042, 51.3510],
-        submitter: {
-            email: "user1@example.com",
-            createdAt: "2026-02-14 17:59",
-            updatedAt: "2026-02-14 18:10",
-        },
-        comments: [
-            {
-                id: 1,
-                author: "sana@example.com",
-                createdAt: "2026-02-14 18:07",
-                content: "I think I saw it near the cafeteria.",
-            },
-        ],
-        isOwner: true,
-    },
-    {
-        id: 2,
-        name: "Wallet",
-        status: "found",
-        category: "Personal",
-        location: "Main Gate",
-        date: "2026-02-13",
-        description: "Black leather wallet with ID inside.",
-        coords: [35.7030, 51.3492],
-        submitter: {
-            email: "user2@example.com",
-            createdAt: "2026-02-13 11:20",
-            updatedAt: "2026-02-13 11:20",
-        },
-        comments: [
-            {
-                id: 1,
-                author: "ali@example.com",
-                createdAt: "2026-02-13 12:00",
-                content: "I might know the owner.",
-            },
-        ],
-        isOwner: false,
-    },
-];
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
-const categories = ["All categories", "Other", "Personal", "Electronics", "Books"];
+const formatDateTime = (value) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString();
+};
+
+const resolveImageUrl = (imageUrl) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
+    return `${API_BASE}${imageUrl}`;
+};
+
+const uniqueTags = (tags) => {
+    const out = [];
+    for (const tag of tags) {
+        const normalized = String(tag || "").trim().toLowerCase();
+        if (!normalized || out.includes(normalized)) continue;
+        out.push(normalized);
+    }
+    return out;
+};
 
 const LostPage = () => {
     const navigate = useNavigate();
+    const { auth, isLoggedIn } = useAuth();
     const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [tagFilter, setTagFilter] = useState("");
+    const [debouncedTagFilter, setDebouncedTagFilter] = useState("");
+    const [itemTypeFilter, setItemTypeFilter] = useState("all");
+    const [debouncedItemTypeFilter, setDebouncedItemTypeFilter] = useState("all");
+    const [ownerFilter, setOwnerFilter] = useState("");
+    const [debouncedOwnerFilter, setDebouncedOwnerFilter] = useState("");
     const [locationQuery, setLocationQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("All categories");
+    const [items, setItems] = useState([]);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+    const [error, setError] = useState("");
+    const [availableTags, setAvailableTags] = useState(() => uniqueTags([...tagOptions, "other"]));
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedQuery(query), 300);
+        return () => clearTimeout(timer);
+    }, [query]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedTagFilter(tagFilter);
+            setDebouncedItemTypeFilter(itemTypeFilter);
+            setDebouncedOwnerFilter(ownerFilter);
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [itemTypeFilter, ownerFilter, tagFilter]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const normalizedOwner = debouncedOwnerFilter.trim();
+
+        const loadItems = async () => {
+            setError("");
+            setIsLoading(true);
+            try {
+                const data = await itemService.listItems({
+                    search: debouncedQuery.trim(),
+                    tag: debouncedTagFilter.trim(),
+                    itemType: debouncedItemTypeFilter === "all" ? "" : debouncedItemTypeFilter,
+                    owner: /^\d+$/.test(normalizedOwner) ? normalizedOwner : "",
+                });
+                if (!cancelled) {
+                    setItems(Array.isArray(data) ? data : []);
+                    const backendTags = Array.isArray(data)
+                        ? data.flatMap((item) => item.tags || [])
+                        : [];
+                    setAvailableTags((prev) => uniqueTags([...prev, ...backendTags, "other"]));
+                }
+            } catch (err) {
+                if (cancelled) return;
+                const detail = err instanceof Error ? err.message : "Failed to load items";
+                setError(detail);
+            } finally {
+                if (!cancelled) {
+                    setIsLoading(false);
+                    setHasLoadedOnce(true);
+                }
+            }
+        };
+
+        loadItems();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [debouncedItemTypeFilter, debouncedOwnerFilter, debouncedQuery, debouncedTagFilter]);
 
     const filteredItems = useMemo(() => {
-        return mockItems.filter((item) => {
-            const matchesQuery =
-                item.name.toLowerCase().includes(query.toLowerCase()) ||
-                item.description.toLowerCase().includes(query.toLowerCase());
+        return items.filter((item) =>
+            (item.location || "").toLowerCase().includes(locationQuery.toLowerCase())
+        );
+    }, [items, locationQuery]);
 
-            const matchesLocation = item.location
-                .toLowerCase()
-                .includes(locationQuery.toLowerCase());
+    const canEditSelectedItem =
+        !!selectedItem && !!auth?.user?.id && selectedItem.userId === auth.user.id;
 
-            const matchesStatus =
-                statusFilter === "all" || item.status === statusFilter;
-
-            const matchesCategory =
-                categoryFilter === "All categories" || item.category === categoryFilter;
-
-            return matchesQuery && matchesLocation && matchesStatus && matchesCategory;
-        });
-    }, [query, locationQuery, statusFilter, categoryFilter]);
+    const handleItemUpdated = (latest) => {
+        setSelectedItem(latest);
+        setItems((prev) => prev.map((item) => (item.id === latest.id ? latest : item)));
+    };
 
     return (
         <div className="page">
@@ -94,25 +130,68 @@ const LostPage = () => {
                 <div className="container lost-page">
                     <div className="lost-header">
                         <div>
-                            <h1 className="page-title">Items list</h1>
+                            <h1 className="page-title">Items</h1>
                             <p className="page-subtitle">
-                                Browse and search for lost and found items
+                                Browse the map and cards for lost and found items
                             </p>
                         </div>
 
-                        <button
-                            className="btn primary"
-                            onClick={() => navigate("/items/new")}
-                        >
-                            + Add new item
-                        </button>
+                        <div className="lost-actions">
+                            <button
+                                className="btn primary report-btn report-btn-lost"
+                                onClick={() =>
+                                    navigate(isLoggedIn ? "/items/new?type=lost" : "/auth")
+                                }
+                            >
+                                <span className="report-btn-icon" aria-hidden="true">?</span>
+                                <span className="report-btn-title">Report Lost Item</span>
+                                <span className="report-btn-arrow" aria-hidden="true">→</span>
+                            </button>
+                            <button
+                                className="btn ghost report-btn report-btn-found"
+                                onClick={() =>
+                                    navigate(isLoggedIn ? "/items/new?type=found" : "/auth")
+                                }
+                            >
+                                <span className="report-btn-icon" aria-hidden="true">!</span>
+                                <span className="report-btn-title">Report Found Item</span>
+                                <span className="report-btn-arrow" aria-hidden="true">→</span>
+                            </button>
+                        </div>
                     </div>
 
+                    {error ? <div className="page-error">{error}</div> : null}
+                    {!hasLoadedOnce && isLoading ? <div className="page-note">Loading items...</div> : null}
+
                     <div className="lost-controls">
+                        <div className="segmented" role="tablist" aria-label="Item type filter">
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "all" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("all")}
+                            >
+                                All
+                            </button>
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "lost" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("lost")}
+                            >
+                                Lost
+                            </button>
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "found" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("found")}
+                            >
+                                Found
+                            </button>
+                        </div>
+
                         <div className="search-box">
                             <input
                                 type="text"
-                                placeholder="Search by name or description..."
+                                placeholder="Search title, description, location..."
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                             />
@@ -120,45 +199,33 @@ const LostPage = () => {
 
                         <div className="filter-row">
                             <div className="filter-group">
-                                <label>Status</label>
-                                <div className="segmented">
-                                    <button
-                                        className={`seg-btn ${statusFilter === "all" ? "active" : ""}`}
-                                        onClick={() => setStatusFilter("all")}
-                                    >
-                                        All
-                                    </button>
-                                    <button
-                                        className={`seg-btn ${statusFilter === "lost" ? "active" : ""}`}
-                                        onClick={() => setStatusFilter("lost")}
-                                    >
-                                        Lost
-                                    </button>
-                                    <button
-                                        className={`seg-btn ${statusFilter === "found" ? "active" : ""}`}
-                                        onClick={() => setStatusFilter("found")}
-                                    >
-                                        Found
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="filter-group">
-                                <label>Category</label>
+                                <label>Tag (backend filter)</label>
                                 <select
-                                    value={categoryFilter}
-                                    onChange={(e) => setCategoryFilter(e.target.value)}
+                                    value={tagFilter}
+                                    onChange={(e) => setTagFilter(e.target.value)}
                                 >
-                                    {categories.map((c) => (
-                                        <option key={c} value={c}>
-                                            {c}
+                                    <option value="">All tags</option>
+                                    {availableTags.map((tag) => (
+                                        <option key={tag} value={tag}>
+                                            {tag}
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
                             <div className="filter-group">
-                                <label>Location</label>
+                                <label>Owner ID (backend filter)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    placeholder="example: 1"
+                                    value={ownerFilter}
+                                    onChange={(e) => setOwnerFilter(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="filter-group">
+                                <label>Location (client filter)</label>
                                 <input
                                     type="text"
                                     placeholder="Search by location..."
@@ -171,110 +238,27 @@ const LostPage = () => {
 
                     <MapView items={filteredItems} onSelectItem={setSelectedItem} />
 
-                    <div className="items-grid">
-                        {filteredItems.map((item) => (
-                            <div
-                                key={item.id}
-                                className="item-card"
-                                onClick={() => setSelectedItem(item)}
-                                role="button"
-                                tabIndex={0}
-                            >
-                                <div className="item-thumb">?</div>
-                                <div className="item-body">
-                                    <div className="item-title-row">
-                                        <h3>{item.name}</h3>
-                                        <span className={`status ${item.status}`}>
-                      {item.status === "lost" ? "Lost" : "Found"}
-                    </span>
-                                    </div>
-                                    <div className="item-tags">
-                                        <span className="tag">{item.category}</span>
-                                    </div>
-                                    <div className="item-meta">
-                                        <span>{item.location}</span>
-                                        <span>{item.date}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-
-                        {filteredItems.length === 0 && (
-                            <div className="empty-state">No items found.</div>
-                        )}
-                    </div>
+                    <ItemCardsGrid
+                        items={filteredItems}
+                        onSelectItem={setSelectedItem}
+                        resolveImageUrl={resolveImageUrl}
+                        showEmpty={!isLoading}
+                    />
                 </div>
             </main>
 
             <Footer />
 
-            {selectedItem && (
-                <div className="modal-backdrop" onClick={() => setSelectedItem(null)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <div>
-                                <h2>{selectedItem.name}</h2>
-                                <span className={`status ${selectedItem.status}`}>
-                  {selectedItem.status === "lost" ? "Lost" : "Found"}
-                </span>
-                            </div>
-                            <button className="icon-btn" onClick={() => setSelectedItem(null)}>
-                                ✕
-                            </button>
-                        </div>
-
-                        <section className="modal-section">
-                            <h4>Description</h4>
-                            <p>{selectedItem.description}</p>
-                        </section>
-
-                        <section className="modal-section">
-                            <h4>Categories</h4>
-                            <div className="tag">{selectedItem.category}</div>
-                        </section>
-
-                        <section className="modal-section">
-                            <h4>Location</h4>
-                            <p>{selectedItem.location}</p>
-                        </section>
-
-                        <section className="modal-section">
-                            <h4>Submitter info</h4>
-                            <div className="info-box">
-                                <div>Email: {selectedItem.submitter.email}</div>
-                                <div>Submitted: {selectedItem.submitter.createdAt}</div>
-                                <div>Last edited: {selectedItem.submitter.updatedAt}</div>
-                            </div>
-                        </section>
-
-                        <section className="modal-section">
-                            <h4>Comments ({selectedItem.comments.length})</h4>
-                            <div className="comments-list">
-                                {selectedItem.comments.map((c) => (
-                                    <div className="comment" key={c.id}>
-                                        <div className="comment-head">
-                                            <strong>{c.author}</strong>
-                                            <span>{c.createdAt}</span>
-                                        </div>
-                                        <p>{c.content}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {selectedItem.isOwner && (
-                            <div className="modal-actions">
-                                <button
-                                    className="btn ghost"
-                                    onClick={() => navigate(`/items/${selectedItem.id}/edit`)}
-                                >
-                                    Edit item
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            {selectedItem ? (
+                <ItemDetailModal
+                    item={selectedItem}
+                    onClose={() => setSelectedItem(null)}
+                    onItemChange={handleItemUpdated}
+                    formatDateTime={formatDateTime}
+                    showEditAction={canEditSelectedItem}
+                    onEditItem={() => navigate(`/items/${selectedItem.id}/edit`)}
+                />
+            ) : null}
         </div>
     );
 };
