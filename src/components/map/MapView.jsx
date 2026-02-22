@@ -1,21 +1,12 @@
 // src/components/map/MapView.jsx
 import L from "leaflet";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
 
 const DEFAULT_CENTER = [35.7036, 51.3515];
-
-const ITEM_PIN_ICON = L.icon({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-});
+const markerIconCache = new Map();
+const FOUND_SIZE_MIN = 24;
+const FOUND_SIZE_MAX = 44;
+const FOUND_RECENCY_WINDOW_DAYS = 45;
 
 const parseCoordinates = (item) => {
     const latitude = Number(item.latitude);
@@ -25,6 +16,65 @@ const parseCoordinates = (item) => {
     }
     return [latitude, longitude];
 };
+
+const getItemType = (item) => {
+    const normalized = String(item?.itemType || item?.item_type || "lost").toLowerCase();
+    if (normalized === "lost" || normalized === "found") {
+        return normalized;
+    }
+    return "lost";
+};
+
+const getItemTypeLabel = (itemType) => {
+    if (itemType === "lost") return "Lost";
+    return "Found";
+};
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const resolveItemCreatedAt = (item) => item?.createdAt || item?.created_at || item?.created || "";
+
+const getFoundMarkerSize = (item) => {
+    const createdAt = new Date(resolveItemCreatedAt(item));
+    if (Number.isNaN(createdAt.getTime())) {
+        return Math.round((FOUND_SIZE_MIN + FOUND_SIZE_MAX) / 2);
+    }
+
+    const ageInDays = Math.max(0, (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    const recencyScore = clamp(1 - ageInDays / FOUND_RECENCY_WINDOW_DAYS, 0, 1);
+    return Math.round(FOUND_SIZE_MIN + (FOUND_SIZE_MAX - FOUND_SIZE_MIN) * recencyScore);
+};
+
+const getItemMarkerSize = (item, itemType) => {
+    if (itemType === "found") return getFoundMarkerSize(item);
+    return 32;
+};
+
+const buildMarkerIcon = (itemType, markerSize) => {
+    const key = `${itemType}-${markerSize}`;
+    if (markerIconCache.has(key)) {
+        return markerIconCache.get(key);
+    }
+
+    const symbol = itemType === "found" ? "!" : "?";
+    const icon = L.divIcon({
+        className: "map-pin-wrapper",
+        html: `<span class="map-pin ${itemType}" style="--pin-size:${markerSize}px">${symbol}</span>`,
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [Math.round(markerSize / 2), Math.round(markerSize / 2)],
+        popupAnchor: [0, -Math.round(markerSize / 2)],
+    });
+    markerIconCache.set(key, icon);
+    return icon;
+};
+
+const SELECTED_POSITION_ICON = L.divIcon({
+    className: "map-pin-wrapper",
+    html: '<span class="map-pin selected">+</span>',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+});
 
 const MapPinSelector = ({ enabled, onSelectPosition }) => {
     useMapEvents({
@@ -82,28 +132,38 @@ const MapView = ({
                 <MapPinSelector enabled={selectable} onSelectPosition={onSelectPosition} />
 
                 {itemsWithCoordinates.map(({ item, coordinates }) => (
-                    <Marker
-                        key={item.id}
-                        position={coordinates}
-                        icon={ITEM_PIN_ICON}
-                        eventHandlers={
-                            onSelectItem
-                                ? {
-                                      click: () => onSelectItem(item),
-                                  }
-                                : undefined
-                        }
-                    >
-                        <Popup>
-                            <strong>{item.title || "Item"}</strong>
-                            <br />
-                            {item.location || "No location text"}
-                        </Popup>
-                    </Marker>
+                    (() => {
+                        const itemType = getItemType(item);
+                        const markerSize = getItemMarkerSize(item, itemType);
+                        return (
+                            <Marker
+                                key={item.id}
+                                position={coordinates}
+                                icon={buildMarkerIcon(itemType, markerSize)}
+                                eventHandlers={
+                                    onSelectItem
+                                        ? {
+                                              click: () => onSelectItem(item),
+                                          }
+                                        : undefined
+                                }
+                            >
+                                <Popup>
+                                    <strong>{item.title || "Item"}</strong>
+                                    <br />
+                                    <span className={`map-popup-type ${itemType}`}>
+                                        {getItemTypeLabel(itemType)}
+                                    </span>
+                                    <br />
+                                    {item.location || "No location text"}
+                                </Popup>
+                            </Marker>
+                        );
+                    })()
                 ))}
 
                 {selectedCoordinates ? (
-                    <Marker position={selectedCoordinates} icon={ITEM_PIN_ICON}>
+                    <Marker position={selectedCoordinates} icon={SELECTED_POSITION_ICON}>
                         <Popup>Selected pin position</Popup>
                     </Marker>
                 ) : null}
@@ -113,11 +173,14 @@ const MapView = ({
                 <div className="map-legend">
                     <h4>Map legend</h4>
                     <div className="legend-item">
-                        <span className="dot red"></span> Item coordinate
+                        <span className="dot lost"></span> Lost item
+                    </div>
+                    <div className="legend-item">
+                        <span className="dot found"></span> Found item (newer = larger icon)
                     </div>
                     {selectable ? (
                         <div className="legend-item">
-                            <span className="dot green"></span> Click map to set pin
+                            <span className="dot selected"></span> Click map to set pin
                         </div>
                     ) : null}
                 </div>

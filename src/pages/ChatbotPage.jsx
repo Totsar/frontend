@@ -47,6 +47,7 @@ const normalizeItem = (item) => {
         title: source.title || source.itemTitle || source.item_title || source.name || "",
         description: source.description || source.details || "",
         location: source.location || source.locationText || source.location_text || "",
+        itemType: source.itemType || source.item_type || "lost",
         createdAt: source.createdAt || source.created_at || source.created || "",
         latitude: source.latitude ?? source.lat ?? null,
         longitude: source.longitude ?? source.lng ?? null,
@@ -309,7 +310,6 @@ const ChatbotPage = () => {
                                 items={pickedItems}
                                 onSelectItem={setSelectedPickedItem}
                                 resolveImageUrl={resolveImageUrl}
-                                formatDateTime={formatDateTime}
                                 showEmpty={false}
                             />
                         ) : null}

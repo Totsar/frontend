@@ -42,6 +42,8 @@ const LostPage = () => {
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [tagFilter, setTagFilter] = useState("");
     const [debouncedTagFilter, setDebouncedTagFilter] = useState("");
+    const [itemTypeFilter, setItemTypeFilter] = useState("all");
+    const [debouncedItemTypeFilter, setDebouncedItemTypeFilter] = useState("all");
     const [ownerFilter, setOwnerFilter] = useState("");
     const [debouncedOwnerFilter, setDebouncedOwnerFilter] = useState("");
     const [locationQuery, setLocationQuery] = useState("");
@@ -50,7 +52,7 @@ const LostPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [error, setError] = useState("");
-    const [availableTags, setAvailableTags] = useState(() => uniqueTags(tagOptions));
+    const [availableTags, setAvailableTags] = useState(() => uniqueTags([...tagOptions, "other"]));
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(query), 300);
@@ -60,10 +62,11 @@ const LostPage = () => {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedTagFilter(tagFilter);
+            setDebouncedItemTypeFilter(itemTypeFilter);
             setDebouncedOwnerFilter(ownerFilter);
         }, 250);
         return () => clearTimeout(timer);
-    }, [tagFilter, ownerFilter]);
+    }, [itemTypeFilter, ownerFilter, tagFilter]);
 
     useEffect(() => {
         let cancelled = false;
@@ -76,6 +79,7 @@ const LostPage = () => {
                 const data = await itemService.listItems({
                     search: debouncedQuery.trim(),
                     tag: debouncedTagFilter.trim(),
+                    itemType: debouncedItemTypeFilter === "all" ? "" : debouncedItemTypeFilter,
                     owner: /^\d+$/.test(normalizedOwner) ? normalizedOwner : "",
                 });
                 if (!cancelled) {
@@ -83,7 +87,7 @@ const LostPage = () => {
                     const backendTags = Array.isArray(data)
                         ? data.flatMap((item) => item.tags || [])
                         : [];
-                    setAvailableTags((prev) => uniqueTags([...prev, ...backendTags]));
+                    setAvailableTags((prev) => uniqueTags([...prev, ...backendTags, "other"]));
                 }
             } catch (err) {
                 if (cancelled) return;
@@ -102,7 +106,7 @@ const LostPage = () => {
         return () => {
             cancelled = true;
         };
-    }, [debouncedQuery, debouncedTagFilter, debouncedOwnerFilter]);
+    }, [debouncedItemTypeFilter, debouncedOwnerFilter, debouncedQuery, debouncedTagFilter]);
 
     const filteredItems = useMemo(() => {
         return items.filter((item) =>
@@ -126,24 +130,64 @@ const LostPage = () => {
                 <div className="container lost-page">
                     <div className="lost-header">
                         <div>
-                            <h1 className="page-title">Items list</h1>
+                            <h1 className="page-title">Items</h1>
                             <p className="page-subtitle">
-                                Browse and search for lost and found items
+                                Browse the map and cards for lost and found items
                             </p>
                         </div>
 
-                        <button
-                            className="btn primary"
-                            onClick={() => navigate(isLoggedIn ? "/items/new" : "/auth")}
-                        >
-                            + Add new item
-                        </button>
+                        <div className="lost-actions">
+                            <button
+                                className="btn primary report-btn report-btn-lost"
+                                onClick={() =>
+                                    navigate(isLoggedIn ? "/items/new?type=lost" : "/auth")
+                                }
+                            >
+                                <span className="report-btn-icon" aria-hidden="true">?</span>
+                                <span className="report-btn-title">Report Lost Item</span>
+                                <span className="report-btn-arrow" aria-hidden="true">→</span>
+                            </button>
+                            <button
+                                className="btn ghost report-btn report-btn-found"
+                                onClick={() =>
+                                    navigate(isLoggedIn ? "/items/new?type=found" : "/auth")
+                                }
+                            >
+                                <span className="report-btn-icon" aria-hidden="true">!</span>
+                                <span className="report-btn-title">Report Found Item</span>
+                                <span className="report-btn-arrow" aria-hidden="true">→</span>
+                            </button>
+                        </div>
                     </div>
 
                     {error ? <div className="page-error">{error}</div> : null}
                     {!hasLoadedOnce && isLoading ? <div className="page-note">Loading items...</div> : null}
 
                     <div className="lost-controls">
+                        <div className="segmented" role="tablist" aria-label="Item type filter">
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "all" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("all")}
+                            >
+                                All
+                            </button>
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "lost" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("lost")}
+                            >
+                                Lost
+                            </button>
+                            <button
+                                className={`seg-btn ${itemTypeFilter === "found" ? "active" : ""}`}
+                                type="button"
+                                onClick={() => setItemTypeFilter("found")}
+                            >
+                                Found
+                            </button>
+                        </div>
+
                         <div className="search-box">
                             <input
                                 type="text"
@@ -198,7 +242,6 @@ const LostPage = () => {
                         items={filteredItems}
                         onSelectItem={setSelectedItem}
                         resolveImageUrl={resolveImageUrl}
-                        formatDateTime={formatDateTime}
                         showEmpty={!isLoading}
                     />
                 </div>

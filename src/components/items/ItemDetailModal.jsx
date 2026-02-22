@@ -6,6 +6,40 @@ import { itemService } from "../../services/itemService";
 const formatCoordinate = (value) =>
     Number.isFinite(Number(value)) ? Number(value).toFixed(6) : "-";
 
+const formatRelativeTime = (value) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "-";
+
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 1000));
+    if (elapsedSeconds < 60) return "just now";
+
+    const minutes = Math.floor(elapsedSeconds / 60);
+    if (minutes < 60) return `${minutes} min ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
+};
+
+const getItemType = (item) => {
+    const normalized = String(item?.itemType || item?.item_type || "lost").toLowerCase();
+    if (normalized === "lost" || normalized === "found") {
+        return normalized;
+    }
+    return "lost";
+};
+
+const getItemTypeLabel = (itemType) => {
+    if (itemType === "lost") return "Lost";
+    return "Found";
+};
+
 const ItemDetailModal = ({
     item,
     onClose,
@@ -29,11 +63,14 @@ const ItemDetailModal = ({
     }, [item?.id]);
 
     if (!item) return null;
+    const itemType = getItemType(item);
     const hasCoordinates =
         Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude));
     const itemMapCenter = hasCoordinates
         ? [Number(item.latitude), Number(item.longitude)]
         : undefined;
+    const relativeCreatedAt = formatRelativeTime(item.createdAt);
+    const detailedCreatedAt = formatDateTime ? formatDateTime(item.createdAt) : "-";
 
     const refreshCurrentItem = async () => {
         const latest = await itemService.getItem(item.id);
@@ -121,7 +158,10 @@ const ItemDetailModal = ({
                 <div className="modal-header">
                     <div>
                         <h2>{item.title || `Item #${item.id}`}</h2>
-                        <div className="tag">ID: {item.id}</div>
+                        <div className="modal-type-row">
+                            <span className={`status ${itemType}`}>{getItemTypeLabel(itemType)}</span>
+                            <span className="tag">ID: {item.id}</span>
+                        </div>
                     </div>
                     <button className="icon-btn" onClick={onClose}>
                         X
@@ -183,7 +223,8 @@ const ItemDetailModal = ({
                     <h4>Submitter info</h4>
                     <div className="info-box">
                         <div>Owner user ID: {item.userId || "-"}</div>
-                        <div>Submitted: {formatDateTime ? formatDateTime(item.createdAt) : "-"}</div>
+                        <div>Submitted: {relativeCreatedAt}</div>
+                        <div className="info-detail">Exact time: {detailedCreatedAt}</div>
                     </div>
                 </section>
 

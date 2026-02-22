@@ -1,6 +1,6 @@
 // src/pages/ItemFormPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import MapView from "../components/map/MapView";
@@ -25,18 +25,24 @@ const uniqueTags = (tags) => {
 const ItemFormPage = ({ mode }) => {
     const navigate = useNavigate();
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
     const { auth, isLoggedIn } = useAuth();
     const isEdit = mode === "edit";
+    const typeFromQuery = String(searchParams.get("type") || "").toLowerCase();
+    const initialItemType = ["lost", "found"].includes(typeFromQuery)
+        ? typeFromQuery
+        : "lost";
 
     const [form, setForm] = useState({
         title: "",
+        itemType: initialItemType,
         location: "",
         description: "",
-        selectedTags: [],
+        selectedTags: ["other"],
         latitude: null,
         longitude: null,
     });
-    const [availableTags, setAvailableTags] = useState(() => uniqueTags(tagOptions));
+    const [availableTags, setAvailableTags] = useState(() => uniqueTags([...tagOptions, "other"]));
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
@@ -57,15 +63,17 @@ const ItemFormPage = ({ mode }) => {
             try {
                 const item = await itemService.getItem(id);
                 if (cancelled) return;
+                const loadedTags = uniqueTags(item.tags || []);
                 setForm({
                     title: item.title || "",
+                    itemType: item.itemType || item.item_type || "lost",
                     location: item.location || "",
                     description: item.description || "",
-                    selectedTags: uniqueTags(item.tags || []),
+                    selectedTags: loadedTags.length ? loadedTags : ["other"],
                     latitude: Number.isFinite(Number(item.latitude)) ? Number(item.latitude) : null,
                     longitude: Number.isFinite(Number(item.longitude)) ? Number(item.longitude) : null,
                 });
-                setAvailableTags((prev) => uniqueTags([...prev, ...(item.tags || [])]));
+                setAvailableTags((prev) => uniqueTags([...prev, ...(item.tags || []), "other"]));
             } catch (err) {
                 if (cancelled) return;
                 const detail = err instanceof Error ? err.message : "Failed to load item";
@@ -117,6 +125,7 @@ const ItemFormPage = ({ mode }) => {
 
         const payload = {
             title: form.title.trim(),
+            itemType: form.itemType,
             location: form.location.trim(),
             description: form.description.trim(),
             tags: form.selectedTags,
@@ -126,6 +135,11 @@ const ItemFormPage = ({ mode }) => {
 
         if (!payload.title || !payload.location) {
             setError("Title and location are required.");
+            return;
+        }
+
+        if (!payload.tags.length) {
+            setError('Select at least one tag. Use "other" when no tag fits.');
             return;
         }
 
@@ -142,7 +156,7 @@ const ItemFormPage = ({ mode }) => {
             } else {
                 await itemService.createItem(payload);
             }
-            navigate("/lost");
+            navigate("/items");
         } catch (err) {
             const detail = err instanceof Error ? err.message : "Failed to submit item";
             setError(detail);
@@ -192,6 +206,18 @@ const ItemFormPage = ({ mode }) => {
                         </div>
 
                         <div className="form-row">
+                            <label>Item type</label>
+                            <select
+                                value={form.itemType}
+                                onChange={(e) => update("itemType", e.target.value)}
+                                disabled={isLoading || isSaving}
+                            >
+                                <option value="lost">Lost</option>
+                                <option value="found">Found</option>
+                            </select>
+                        </div>
+
+                        <div className="form-row">
                             <label>Location description</label>
                             <input
                                 type="text"
@@ -232,7 +258,7 @@ const ItemFormPage = ({ mode }) => {
 
                         <div className="form-row">
                             <label>Tags</label>
-                            <p className="field-help">Select one or more tags from the list.</p>
+                            <p className="field-help">Select at least one tag. Use "other" when needed.</p>
                             <div className="tag-selector">
                                 {availableTags.map((tag) => {
                                     const checked = form.selectedTags.includes(tag);
@@ -269,7 +295,7 @@ const ItemFormPage = ({ mode }) => {
                             <button
                                 type="button"
                                 className="btn ghost"
-                                onClick={() => navigate("/lost")}
+                                onClick={() => navigate("/items")}
                                 disabled={isSaving}
                             >
                                 Cancel
