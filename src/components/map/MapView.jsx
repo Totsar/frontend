@@ -48,6 +48,9 @@ const MapView = ({
     selectable = false,
     selectedPosition = null,
     onSelectPosition,
+    interactive = true,
+    showLegend = true,
+    compact = false,
 }) => {
     const itemsWithCoordinates = items
         .map((item) => ({ item, coordinates: parseCoordinates(item) }))
@@ -63,8 +66,14 @@ const MapView = ({
             <MapContainer
                 center={center}
                 zoom={zoom}
-                scrollWheelZoom
-                className="map-container"
+                scrollWheelZoom={interactive}
+                dragging={interactive}
+                touchZoom={interactive}
+                doubleClickZoom={interactive}
+                boxZoom={interactive}
+                keyboard={interactive}
+                zoomControl={interactive}
+                className={`map-container${compact ? " compact" : ""}`}
             >
                 <TileLayer
                     attribution='&copy; OpenStreetMap contributors'
@@ -100,17 +109,19 @@ const MapView = ({
                 ) : null}
             </MapContainer>
 
-            <div className="map-legend">
-                <h4>Map legend</h4>
-                <div className="legend-item">
-                    <span className="dot red"></span> Item coordinate
-                </div>
-                {selectable ? (
+            {showLegend ? (
+                <div className="map-legend">
+                    <h4>Map legend</h4>
                     <div className="legend-item">
-                        <span className="dot green"></span> Click map to set pin
+                        <span className="dot red"></span> Item coordinate
                     </div>
-                ) : null}
-            </div>
+                    {selectable ? (
+                        <div className="legend-item">
+                            <span className="dot green"></span> Click map to set pin
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
         </div>
     );
 };
