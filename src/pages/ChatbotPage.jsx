@@ -7,8 +7,6 @@ import ItemDetailModal from "../components/items/ItemDetailModal";
 import { assistantService } from "../services/assistantService";
 import { itemService } from "../services/itemService";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
 const INITIAL_MESSAGES = [
     {
         id: "welcome",
@@ -32,12 +30,6 @@ const normalizePickedIds = (ids) =>
         acc.values.push(id);
         return acc;
     }, { seen: new Set(), values: [] }).values;
-
-const resolveImageUrl = (imageUrl) => {
-    if (!imageUrl) return "";
-    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
-    return `${API_BASE}${imageUrl}`;
-};
 
 const normalizeItem = (item) => {
     const source = item && typeof item === "object" ? item : {};
@@ -309,7 +301,6 @@ const ChatbotPage = () => {
                             <ItemCardsGrid
                                 items={pickedItems}
                                 onSelectItem={setSelectedPickedItem}
-                                resolveImageUrl={resolveImageUrl}
                                 showEmpty={false}
                             />
                         ) : null}

@@ -3,8 +3,16 @@ import { useAuth } from "../../context/AuthContext";
 import MapView from "../map/MapView";
 import { itemService } from "../../services/itemService";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 const formatCoordinate = (value) =>
     Number.isFinite(Number(value)) ? Number(value).toFixed(6) : "-";
+
+const resolveImageUrl = (imageUrl) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
+    return `${API_BASE}${imageUrl}`;
+};
 
 const formatRelativeTime = (value) => {
     if (!value) return "-";
@@ -167,6 +175,21 @@ const ItemDetailModal = ({
                         X
                     </button>
                 </div>
+
+                <section className="modal-section">
+                    <h4>Image</h4>
+                    {item.image ? (
+                        <div className="image-dropzone-preview-wrap">
+                            <img
+                                src={resolveImageUrl(item.image)}
+                                alt={item.title || `Item #${item.id}`}
+                                className="image-dropzone-preview"
+                            />
+                        </div>
+                    ) : (
+                        <div className="info-box">No image uploaded.</div>
+                    )}
+                </section>
 
                 <section className="modal-section">
                     <h4>Description</h4>

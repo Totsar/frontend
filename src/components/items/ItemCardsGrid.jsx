@@ -1,3 +1,7 @@
+import { clampPreviewY } from "../../utils/imageCrop";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 const getItemTitle = (item) =>
     item?.title || item?.itemTitle || item?.item_title || item?.name || "";
 
@@ -9,6 +13,12 @@ const getItemCreatedAt = (item) =>
 
 const getItemTags = (item) =>
     Array.isArray(item?.tags) ? item.tags : [];
+
+const getItemImage = (item) => item?.image || "";
+const getItemPreviewY = (item) => {
+    const rawValue = item?.imagePreviewY ?? item?.image_preview_y;
+    return clampPreviewY(rawValue);
+};
 
 const formatRelativeTime = (value) => {
     if (!value) return "-";
@@ -44,10 +54,32 @@ const getItemTypeLabel = (itemType) => {
     return "Found";
 };
 
+const resolveImageUrl = (imageUrl) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
+    return `${API_BASE}${imageUrl}`;
+};
+
+const CroppedItemImage = ({ src, alt, previewY }) => {
+    const focusY = clampPreviewY(previewY);
+    return (
+        <div className="item-thumb-image-frame">
+            <img
+                src={src}
+                alt={alt}
+                className="item-thumb-image-positioned"
+                style={{
+                    top: `${focusY}%`,
+                    transform: `translateY(-${focusY}%)`,
+                }}
+            />
+        </div>
+    );
+};
+
 const ItemCardsGrid = ({
     items = [],
     onSelectItem,
-    resolveImageUrl,
     emptyText = "No items found.",
     showEmpty = true,
 }) => {
@@ -57,6 +89,8 @@ const ItemCardsGrid = ({
                 const itemType = getItemType(item);
                 const typeLabel = getItemTypeLabel(itemType);
                 const placeholderSymbol = itemType === "found" ? "!" : "?";
+                const imageUrl = getItemImage(item);
+                const previewY = getItemPreviewY(item);
 
                 return (
                     <div
@@ -72,11 +106,11 @@ const ItemCardsGrid = ({
                         tabIndex={0}
                     >
                         <div className={`item-thumb ${itemType}`}>
-                            {item.image ? (
-                                <img
-                                    src={resolveImageUrl(item.image)}
+                            {imageUrl ? (
+                                <CroppedItemImage
+                                    src={resolveImageUrl(imageUrl)}
                                     alt={getItemTitle(item) || `Item ${item.id}`}
-                                    className="item-thumb-image"
+                                    previewY={previewY}
                                 />
                             ) : (
                                 <span className="item-thumb-placeholder" aria-hidden="true">

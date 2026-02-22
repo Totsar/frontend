@@ -99,7 +99,12 @@ const sendRequest = async ({ path, method, body, headers }) => {
     const res = await fetch(url, {
         method,
         headers,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body:
+            body === undefined
+                ? undefined
+                : body instanceof FormData
+                    ? body
+                    : JSON.stringify(body),
     });
 
     return { res, payload: await parseJson(res) };
@@ -113,7 +118,7 @@ export const requestJson = async ({
     fallbackError = "Request failed",
 }) => {
     const nextHeaders = { ...headers };
-    if (body !== undefined) {
+    if (body !== undefined && !(body instanceof FormData)) {
         nextHeaders["Content-Type"] = "application/json";
     }
 
@@ -140,10 +145,11 @@ export const authenticatedRequestJson = async ({
 }) => {
     const auth = getStoredAuth();
     const token = auth?.accessToken;
+    const refreshToken = auth?.refreshToken;
 
     const attempt = async (accessToken) => {
         const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-        if (body !== undefined) {
+        if (body !== undefined && !(body instanceof FormData)) {
             headers["Content-Type"] = "application/json";
         }
 
@@ -155,7 +161,20 @@ export const authenticatedRequestJson = async ({
         });
     };
 
-    let { res, payload } = await attempt(token);
+    let currentToken = token;
+    if (!currentToken) {
+        if (!refreshToken) {
+            clearStoredAuth();
+            throw new Error("Session expired. Please log in again.");
+        }
+        try {
+            currentToken = await refreshAccessToken();
+        } catch {
+            throw new Error("Session expired. Please log in again.");
+        }
+    }
+
+    let { res, payload } = await attempt(currentToken);
 
     if (res.status === 401) {
         try {
@@ -164,6 +183,11 @@ export const authenticatedRequestJson = async ({
         } catch {
             throw new Error("Session expired. Please log in again.");
         }
+    }
+
+    if (res.status === 401) {
+        clearStoredAuth();
+        throw new Error("Session expired. Please log in again.");
     }
 
     if (!res.ok) {
