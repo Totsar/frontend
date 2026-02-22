@@ -22,6 +22,11 @@ const uniqueTags = (tags) => {
     return out;
 };
 
+const parseCoordinateQuery = (rawValue) => {
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 const ItemFormPage = ({ mode }) => {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -29,6 +34,8 @@ const ItemFormPage = ({ mode }) => {
     const { auth, isLoggedIn } = useAuth();
     const isEdit = mode === "edit";
     const typeFromQuery = String(searchParams.get("type") || "").toLowerCase();
+    const latitudeFromQuery = parseCoordinateQuery(searchParams.get("latitude"));
+    const longitudeFromQuery = parseCoordinateQuery(searchParams.get("longitude"));
     const initialItemType = ["lost", "found"].includes(typeFromQuery)
         ? typeFromQuery
         : "lost";
@@ -39,12 +46,14 @@ const ItemFormPage = ({ mode }) => {
         location: "",
         description: "",
         selectedTags: ["other"],
-        latitude: null,
-        longitude: null,
+        latitude: latitudeFromQuery,
+        longitude: longitudeFromQuery,
     });
     const [availableTags, setAvailableTags] = useState(() => uniqueTags([...tagOptions, "other"]));
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isLocating, setIsLocating] = useState(false);
+    const [locationError, setLocationError] = useState("");
     const [error, setError] = useState("");
 
     const pageTitle = useMemo(
@@ -95,7 +104,42 @@ const ItemFormPage = ({ mode }) => {
     const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
     const handleCoordinatePick = ({ latitude, longitude }) => {
+        setLocationError("");
         setForm((prev) => ({ ...prev, latitude, longitude }));
+    };
+
+    const handleUseCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            setLocationError("Geolocation is not supported in this browser.");
+            return;
+        }
+
+        setLocationError("");
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                setForm((prev) => ({
+                    ...prev,
+                    latitude,
+                    longitude,
+                    location: prev.location || "Near my current location",
+                }));
+                setIsLocating(false);
+            },
+            (geoError) => {
+                const message =
+                    geoError?.message || "Could not access your current location.";
+                setLocationError(message);
+                setIsLocating(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 30000,
+            }
+        );
     };
 
     const handleToggleTag = (tag) => {
@@ -165,14 +209,23 @@ const ItemFormPage = ({ mode }) => {
         }
     };
 
-    const selectedPosition =
-        Number.isFinite(form.latitude) && Number.isFinite(form.longitude)
-            ? { latitude: form.latitude, longitude: form.longitude }
-            : null;
+    const selectedPosition = useMemo(
+        () => (
+            Number.isFinite(form.latitude) && Number.isFinite(form.longitude)
+                ? { latitude: form.latitude, longitude: form.longitude }
+                : null
+        ),
+        [form.latitude, form.longitude]
+    );
 
-    const mapCenter = selectedPosition
-        ? [selectedPosition.latitude, selectedPosition.longitude]
-        : DEFAULT_CENTER;
+    const mapCenter = useMemo(
+        () => (
+            selectedPosition
+                ? [selectedPosition.latitude, selectedPosition.longitude]
+                : DEFAULT_CENTER
+        ),
+        [selectedPosition]
+    );
 
     return (
         <div className="page">
@@ -231,6 +284,17 @@ const ItemFormPage = ({ mode }) => {
 
                         <div className="form-row">
                             <label>Map coordinates (click map to drop pin)</label>
+                            <div className="form-map-actions">
+                                <button
+                                    type="button"
+                                    className="btn ghost"
+                                    onClick={handleUseCurrentLocation}
+                                    disabled={isLoading || isSaving || isLocating}
+                                >
+                                    {isLocating ? "Locating..." : "Use my current location"}
+                                </button>
+                            </div>
+                            {locationError ? <div className="inline-error">{locationError}</div> : null}
                             <MapView
                                 key={
                                     selectedPosition
@@ -243,6 +307,7 @@ const ItemFormPage = ({ mode }) => {
                                 selectable
                                 selectedPosition={selectedPosition}
                                 onSelectPosition={handleCoordinatePick}
+                                recenterOnCenterChange
                             />
                             <div className="coords-box">
                                 <div>

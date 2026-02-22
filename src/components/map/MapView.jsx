@@ -1,6 +1,7 @@
 // src/components/map/MapView.jsx
+import { useEffect, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
 const DEFAULT_CENTER = [35.7036, 51.3515];
 const markerIconCache = new Map();
@@ -76,16 +77,86 @@ const SELECTED_POSITION_ICON = L.divIcon({
     popupAnchor: [0, -14],
 });
 
-const MapPinSelector = ({ enabled, onSelectPosition }) => {
+const MapPinSelector = ({
+    enabled,
+    onSelectPosition,
+    selectOnClick,
+    onLongPressPosition,
+    longPressDurationMs,
+}) => {
+    const pressTimerRef = useRef(null);
+    const longPressTriggeredRef = useRef(false);
+
+    const clearPressTimer = () => {
+        if (pressTimerRef.current) {
+            clearTimeout(pressTimerRef.current);
+            pressTimerRef.current = null;
+        }
+    };
+
+    const startPressTimer = (latlng) => {
+        if (!enabled || !onLongPressPosition) return;
+        clearPressTimer();
+        longPressTriggeredRef.current = false;
+        pressTimerRef.current = setTimeout(() => {
+            longPressTriggeredRef.current = true;
+            onLongPressPosition({
+                latitude: latlng.lat,
+                longitude: latlng.lng,
+            });
+            clearPressTimer();
+        }, longPressDurationMs);
+    };
+
+    useEffect(() => () => clearPressTimer(), []);
+
     useMapEvents({
         click(event) {
-            if (!enabled || !onSelectPosition) return;
+            if (!enabled || !onSelectPosition || !selectOnClick || longPressTriggeredRef.current) {
+                longPressTriggeredRef.current = false;
+                return;
+            }
             onSelectPosition({
                 latitude: event.latlng.lat,
                 longitude: event.latlng.lng,
             });
         },
+        mousedown(event) {
+            startPressTimer(event.latlng);
+        },
+        touchstart(event) {
+            startPressTimer(event.latlng);
+        },
+        mouseup() {
+            clearPressTimer();
+        },
+        touchend() {
+            clearPressTimer();
+        },
+        mousemove() {
+            clearPressTimer();
+        },
+        dragstart() {
+            clearPressTimer();
+        },
+        zoomstart() {
+            clearPressTimer();
+        },
     });
+
+    return null;
+};
+
+const MapViewportController = ({ enabled, center, zoom }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!enabled || !Array.isArray(center) || center.length !== 2) return;
+        const latitude = Number(center[0]);
+        const longitude = Number(center[1]);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+        map.setView([latitude, longitude], zoom, { animate: true });
+    }, [enabled, center, zoom, map]);
 
     return null;
 };
@@ -101,7 +172,41 @@ const MapView = ({
     interactive = true,
     showLegend = true,
     compact = false,
+    recenterOnCenterChange = false,
+    selectOnClick = true,
+    onLongPressPosition,
+    longPressDurationMs = 800,
+    hoverPopupDelayMs = 250,
 }) => {
+    const markerHoverTimersRef = useRef(new Map());
+
+    const clearMarkerHoverTimer = (itemId) => {
+        const timer = markerHoverTimersRef.current.get(itemId);
+        if (timer) {
+            clearTimeout(timer);
+            markerHoverTimersRef.current.delete(itemId);
+        }
+    };
+
+    const scheduleMarkerPopupOpen = (itemId, marker) => {
+        clearMarkerHoverTimer(itemId);
+        const timer = setTimeout(() => {
+            marker.openPopup();
+            markerHoverTimersRef.current.delete(itemId);
+        }, hoverPopupDelayMs);
+        markerHoverTimersRef.current.set(itemId, timer);
+    };
+
+    useEffect(() => {
+        const timerMap = markerHoverTimersRef.current;
+        return () => {
+            for (const timer of timerMap.values()) {
+                clearTimeout(timer);
+            }
+            timerMap.clear();
+        };
+    }, []);
+
     const itemsWithCoordinates = items
         .map((item) => ({ item, coordinates: parseCoordinates(item) }))
         .filter((entry) => !!entry.coordinates);
@@ -129,7 +234,18 @@ const MapView = ({
                     attribution='&copy; OpenStreetMap contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapPinSelector enabled={selectable} onSelectPosition={onSelectPosition} />
+                <MapViewportController
+                    enabled={recenterOnCenterChange}
+                    center={center}
+                    zoom={zoom}
+                />
+                <MapPinSelector
+                    enabled={selectable}
+                    onSelectPosition={onSelectPosition}
+                    selectOnClick={selectOnClick}
+                    onLongPressPosition={onLongPressPosition}
+                    longPressDurationMs={longPressDurationMs}
+                />
 
                 {itemsWithCoordinates.map(({ item, coordinates }) => (
                     (() => {
@@ -140,13 +256,21 @@ const MapView = ({
                                 key={item.id}
                                 position={coordinates}
                                 icon={buildMarkerIcon(itemType, markerSize)}
-                                eventHandlers={
-                                    onSelectItem
-                                        ? {
-                                              click: () => onSelectItem(item),
-                                          }
-                                        : undefined
-                                }
+                                eventHandlers={{
+                                    click: () => {
+                                        clearMarkerHoverTimer(item.id);
+                                        if (onSelectItem) {
+                                            onSelectItem(item);
+                                        }
+                                    },
+                                    mouseover: (event) => {
+                                        scheduleMarkerPopupOpen(item.id, event.target);
+                                    },
+                                    mouseout: (event) => {
+                                        clearMarkerHoverTimer(item.id);
+                                        event.target.closePopup();
+                                    },
+                                }}
                             >
                                 <Popup>
                                     <strong>{item.title || "Item"}</strong>
@@ -180,7 +304,8 @@ const MapView = ({
                     </div>
                     {selectable ? (
                         <div className="legend-item">
-                            <span className="dot selected"></span> Click map to set pin
+                            <span className="dot selected"></span>{" "}
+                            {selectOnClick ? "Click map to set pin" : "Long-press map to set pin"}
                         </div>
                     ) : null}
                 </div>
