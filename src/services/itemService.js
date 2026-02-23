@@ -1,5 +1,39 @@
 import { authenticatedRequestJson, requestJson } from "./apiClient";
 
+const isFile = (value) => typeof File !== "undefined" && value instanceof File;
+
+const appendScalar = (formData, key, value) => {
+    if (value === undefined || value === null) return;
+    if (typeof value === "string" && value.trim() === "") return;
+    formData.append(key, String(value));
+};
+
+const buildItemFormData = (data = {}) => {
+    const formData = new FormData();
+    appendScalar(formData, "title", data.title);
+    appendScalar(formData, "itemType", data.itemType);
+    appendScalar(formData, "location", data.location);
+    appendScalar(formData, "description", data.description);
+    appendScalar(formData, "latitude", data.latitude);
+    appendScalar(formData, "longitude", data.longitude);
+    appendScalar(formData, "imagePreviewY", data.imagePreviewY);
+
+    if (Array.isArray(data.tags)) {
+        data.tags.forEach((tag, index) => {
+            if (tag === undefined || tag === null) return;
+            formData.append(`tags[${index}]`, String(tag));
+        });
+    }
+    if (isFile(data.imageFile)) {
+        formData.append("image", data.imageFile);
+    }
+    if (data.removeImage) {
+        formData.append("removeImage", "true");
+    }
+
+    return formData;
+};
+
 export const itemService = {
     async listItems(params = {}) {
         const query = new URLSearchParams();
@@ -26,7 +60,7 @@ export const itemService = {
         return authenticatedRequestJson({
             path: "/api/item",
             method: "POST",
-            body: data,
+            body: buildItemFormData(data),
             fallbackError: "Failed to create item",
         });
     },
@@ -35,7 +69,7 @@ export const itemService = {
         return authenticatedRequestJson({
             path: `/api/item/${itemId}`,
             method: "PUT",
-            body: data,
+            body: buildItemFormData(data),
             fallbackError: "Failed to update item",
         });
     },

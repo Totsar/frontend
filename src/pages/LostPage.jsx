@@ -10,7 +10,6 @@ import { useAuth } from "../context/AuthContext";
 import { itemService } from "../services/itemService";
 import tagOptions from "../data/tagOptions.json";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 const DEFAULT_CENTER = [35.7036, 51.3515];
 const MAP_REPORT_LONG_PRESS_MS = 700;
 
@@ -22,12 +21,6 @@ const formatDateTime = (value) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleString();
-};
-
-const resolveImageUrl = (imageUrl) => {
-    if (!imageUrl) return "";
-    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) return imageUrl;
-    return `${API_BASE}${imageUrl}`;
 };
 
 const uniqueTags = (tags) => {
@@ -344,7 +337,6 @@ const LostPage = () => {
                     <ItemCardsGrid
                         items={filteredItems}
                         onSelectItem={setSelectedItem}
-                        resolveImageUrl={resolveImageUrl}
                         showEmpty={!isLoading}
                     />
                 </div>
