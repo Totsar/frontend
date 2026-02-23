@@ -197,3 +197,11 @@ export const authenticatedRequestJson = async ({
     if (res.status === 204) return null;
     return payload;
 };
+
+export const optionalAuthenticatedRequestJson = async (params) => {
+    const auth = getStoredAuth();
+    if (!auth?.accessToken && !auth?.refreshToken) {
+        return requestJson(params);
+    }
+    return authenticatedRequestJson(params);
+};

@@ -48,6 +48,14 @@ const getItemTypeLabel = (itemType) => {
     return "Found";
 };
 
+const COMMENT_REPORT_REASONS = [
+    { value: "spam", label: "Spam" },
+    { value: "offensive", label: "Offensive / inappropriate" },
+    { value: "harassment", label: "Harassment" },
+    { value: "irrelevant", label: "Irrelevant" },
+    { value: "other", label: "Other" },
+];
+
 const ItemDetailModal = ({
     item,
     onClose,
@@ -62,12 +70,21 @@ const ItemDetailModal = ({
     const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editingCommentText, setEditingCommentText] = useState("");
+    const [reportModalComment, setReportModalComment] = useState(null);
+    const [reportReason, setReportReason] = useState("spam");
+    const [reportNote, setReportNote] = useState("");
+    const [isReportSubmitting, setIsReportSubmitting] = useState(false);
+    const [reportActionMessage, setReportActionMessage] = useState("");
 
     useEffect(() => {
         setCommentActionError("");
+        setReportActionMessage("");
         setCommentDraft("");
         setEditingCommentId(null);
         setEditingCommentText("");
+        setReportModalComment(null);
+        setReportReason("spam");
+        setReportNote("");
     }, [item?.id]);
 
     if (!item) return null;
@@ -157,6 +174,43 @@ const ItemDetailModal = ({
             setCommentActionError(detail);
         } finally {
             setIsCommentSubmitting(false);
+        }
+    };
+
+    const openReportModal = (comment) => {
+        setCommentActionError("");
+        setReportActionMessage("");
+        setReportModalComment(comment);
+        setReportReason("spam");
+        setReportNote("");
+    };
+
+    const closeReportModal = () => {
+        if (isReportSubmitting) return;
+        setReportModalComment(null);
+    };
+
+    const handleSubmitReport = async () => {
+        if (!reportModalComment) return;
+        if (!isLoggedIn) {
+            setCommentActionError("Please log in to report comments.");
+            return;
+        }
+
+        setCommentActionError("");
+        setReportActionMessage("");
+        setIsReportSubmitting(true);
+        try {
+            const note = reportReason === "other" ? reportNote.trim() : "";
+            await itemService.reportComment(item.id, reportModalComment.id, reportReason, note);
+            closeReportModal();
+            setReportActionMessage("Report submitted.");
+            await refreshCurrentItem();
+        } catch (err) {
+            const detail = err instanceof Error ? err.message : "Failed to report comment";
+            setCommentActionError(detail);
+        } finally {
+            setIsReportSubmitting(false);
         }
     };
 
@@ -254,6 +308,7 @@ const ItemDetailModal = ({
                 <section className="modal-section">
                     <h4>Comments ({(item.comments || []).length})</h4>
                     {commentActionError ? <div className="comment-error">{commentActionError}</div> : null}
+                    {reportActionMessage ? <div className="page-note">{reportActionMessage}</div> : null}
                     <div className="comment-editor">
                         <textarea
                             rows="3"
@@ -280,7 +335,23 @@ const ItemDetailModal = ({
                                 <div className="comment" key={comment.id}>
                                     <div className="comment-head">
                                         <strong>User #{comment.userId}</strong>
-                                        <span>{formatDateTime ? formatDateTime(comment.createdAt) : "-"}</span>
+                                        <div className="comment-head-meta">
+                                            <span>{formatDateTime ? formatDateTime(comment.createdAt) : "-"}</span>
+                                            {isLoggedIn && auth?.user?.id !== comment.userId ? (
+                                                <button
+                                                    type="button"
+                                                    className="comment-report-btn"
+                                                    onClick={() => openReportModal(comment)}
+                                                    disabled={comment.canReport === false || isReportSubmitting}
+                                                    aria-label={
+                                                        comment.isReportedByMe ? "Comment already reported" : "Report comment"
+                                                    }
+                                                    title={comment.isReportedByMe ? "Reported" : "Report comment"}
+                                                >
+                                                    {comment.isReportedByMe ? "Reported" : "!"}
+                                                </button>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     {editingCommentId === comment.id ? (
                                         <div className="comment-editor inline">
@@ -350,6 +421,65 @@ const ItemDetailModal = ({
                     </div>
                 ) : null}
             </div>
+            {reportModalComment ? (
+                <div
+                    className="modal-backdrop report-modal-backdrop"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        closeReportModal();
+                    }}
+                >
+                    <div className="report-modal-card" onClick={(event) => event.stopPropagation()}>
+                        <h3>Report comment</h3>
+                        <p className="report-modal-text">Why are you reporting this comment?</p>
+                        <label htmlFor="comment-report-reason">Reason</label>
+                        <select
+                            id="comment-report-reason"
+                            value={reportReason}
+                            onChange={(event) => setReportReason(event.target.value)}
+                            disabled={isReportSubmitting}
+                        >
+                            {COMMENT_REPORT_REASONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        {reportReason === "other" ? (
+                            <>
+                                <label htmlFor="comment-report-note">Short note (optional)</label>
+                                <input
+                                    id="comment-report-note"
+                                    type="text"
+                                    maxLength={280}
+                                    value={reportNote}
+                                    onChange={(event) => setReportNote(event.target.value)}
+                                    disabled={isReportSubmitting}
+                                    placeholder="Optional details"
+                                />
+                            </>
+                        ) : null}
+                        <div className="report-modal-actions">
+                            <button
+                                type="button"
+                                className="btn ghost"
+                                onClick={closeReportModal}
+                                disabled={isReportSubmitting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn primary"
+                                onClick={handleSubmitReport}
+                                disabled={isReportSubmitting}
+                            >
+                                {isReportSubmitting ? "Submitting..." : "Submit report"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 };

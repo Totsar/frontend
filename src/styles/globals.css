@@ -920,6 +920,76 @@ a {
     color: #6b7280;
 }
 
+.comment-head-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.comment-report-btn {
+    border: 1px solid #f59e0b;
+    background: #fffbeb;
+    color: #b45309;
+    border-radius: 999px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.comment-report-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.report-modal-backdrop {
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.report-modal-card {
+    width: min(420px, 92vw);
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.report-modal-card h3 {
+    margin: 0;
+}
+
+.report-modal-text {
+    margin: 0;
+    color: #4b5563;
+}
+
+.report-modal-card label {
+    font-size: 13px;
+    color: #374151;
+}
+
+.report-modal-card select,
+.report-modal-card input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font: inherit;
+}
+
+.report-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 .modal-actions {
     margin-top: 16px;
     display: flex;
