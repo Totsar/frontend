@@ -1,4 +1,4 @@
-import { authenticatedRequestJson, requestJson } from "./apiClient";
+import { authenticatedRequestJson, optionalAuthenticatedRequestJson } from "./apiClient";
 
 const isFile = (value) => typeof File !== "undefined" && value instanceof File;
 
@@ -43,14 +43,14 @@ export const itemService = {
             }
         }
         const suffix = query.toString() ? `?${query}` : "";
-        return requestJson({
+        return optionalAuthenticatedRequestJson({
             path: `/api/item${suffix}`,
             fallbackError: "Failed to load items",
         });
     },
 
     async getItem(itemId) {
-        return requestJson({
+        return optionalAuthenticatedRequestJson({
             path: `/api/item/${itemId}`,
             fallbackError: "Failed to load item",
         });
@@ -97,6 +97,15 @@ export const itemService = {
             path: `/api/item/${itemId}/comment/${commentId}`,
             method: "DELETE",
             fallbackError: "Failed to delete comment",
+        });
+    },
+
+    async reportComment(itemId, commentId, reason, note = "") {
+        return authenticatedRequestJson({
+            path: `/api/item/${itemId}/comment/${commentId}/report`,
+            method: "POST",
+            body: { reason, note },
+            fallbackError: "Failed to report comment",
         });
     },
 };
