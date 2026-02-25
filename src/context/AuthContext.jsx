@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { authService } from "../services/authService";
 import { AUTH_EXPIRED_EVENT, AUTH_UPDATED_EVENT } from "../services/apiClient";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [auth, setAuth] = useState(() => {
@@ -53,7 +53,6 @@ export const AuthProvider = ({ children }) => {
         return data;
     }, []);
 
-    // src/context/AuthContext.jsx
     const logout = useCallback(async () => {
         try {
             if (auth?.refreshToken) {
@@ -65,7 +64,6 @@ export const AuthProvider = ({ children }) => {
             clearAuth();
         }
     }, [auth?.refreshToken]);
-
 
     const value = useMemo(
         () => ({

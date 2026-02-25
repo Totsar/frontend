@@ -14,4 +14,14 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.js'],
+    globals: true,
+    css: true,
+    coverage: {
+      reporter: ['text', 'lcov'],
+      include: ['src/**/*.{js,jsx,ts,tsx}'],
+    },
+  },
 })
