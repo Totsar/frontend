@@ -1,7 +1,15 @@
 // src/components/map/MapView.jsx
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import {
+    MapContainer,
+    Marker,
+    Popup,
+    TileLayer,
+    useMap,
+    useMapEvents,
+} from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 
 const DEFAULT_CENTER = [35.7036, 51.3515];
 const markerIconCache = new Map();
@@ -77,13 +85,23 @@ const SELECTED_POSITION_ICON = L.divIcon({
     popupAnchor: [0, -14],
 });
 
+const buildClusterIcon = (cluster) => {
+    const count = cluster.getChildCount();
+    const size = count < 10 ? "small" : count < 50 ? "medium" : "large";
+    return L.divIcon({
+        html: `<div class="cluster-icon cluster-${size}">${count}</div>`,
+        className: "cluster-wrapper",
+        iconSize: L.point(40, 40, true),
+    });
+};
+
 const MapPinSelector = ({
-    enabled,
-    onSelectPosition,
-    selectOnClick,
-    onLongPressPosition,
-    longPressDurationMs,
-}) => {
+                            enabled,
+                            onSelectPosition,
+                            selectOnClick,
+                            onLongPressPosition,
+                            longPressDurationMs,
+                        }) => {
     const pressTimerRef = useRef(null);
     const longPressTriggeredRef = useRef(false);
 
@@ -162,22 +180,22 @@ const MapViewportController = ({ enabled, center, zoom }) => {
 };
 
 const MapView = ({
-    items = [],
-    center = DEFAULT_CENTER,
-    zoom = 15,
-    onSelectItem,
-    selectable = false,
-    selectedPosition = null,
-    onSelectPosition,
-    interactive = true,
-    showLegend = true,
-    compact = false,
-    recenterOnCenterChange = false,
-    selectOnClick = true,
-    onLongPressPosition,
-    longPressDurationMs = 800,
-    hoverPopupDelayMs = 250,
-}) => {
+                     items = [],
+                     center = DEFAULT_CENTER,
+                     zoom = 15,
+                     onSelectItem,
+                     selectable = false,
+                     selectedPosition = null,
+                     onSelectPosition,
+                     interactive = true,
+                     showLegend = true,
+                     compact = false,
+                     recenterOnCenterChange = false,
+                     selectOnClick = true,
+                     onLongPressPosition,
+                     longPressDurationMs = 800,
+                     hoverPopupDelayMs = 250,
+                 }) => {
     const markerHoverTimersRef = useRef(new Map());
 
     const clearMarkerHoverTimer = (itemId) => {
@@ -212,7 +230,9 @@ const MapView = ({
         .filter((entry) => !!entry.coordinates);
 
     const selectedCoordinates =
-        selectedPosition && Number.isFinite(selectedPosition.latitude) && Number.isFinite(selectedPosition.longitude)
+        selectedPosition &&
+        Number.isFinite(selectedPosition.latitude) &&
+        Number.isFinite(selectedPosition.longitude)
             ? [selectedPosition.latitude, selectedPosition.longitude]
             : null;
 
@@ -247,8 +267,14 @@ const MapView = ({
                     longPressDurationMs={longPressDurationMs}
                 />
 
-                {itemsWithCoordinates.map(({ item, coordinates }) => (
-                    (() => {
+                <MarkerClusterGroup
+                    chunkedLoading
+                    spiderfyOnMaxZoom
+                    showCoverageOnHover={false}
+                    maxClusterRadius={50}
+                    iconCreateFunction={buildClusterIcon}
+                >
+                    {itemsWithCoordinates.map(({ item, coordinates }) => {
                         const itemType = getItemType(item);
                         const markerSize = getItemMarkerSize(item, itemType);
                         return (
@@ -283,8 +309,8 @@ const MapView = ({
                                 </Popup>
                             </Marker>
                         );
-                    })()
-                ))}
+                    })}
+                </MarkerClusterGroup>
 
                 {selectedCoordinates ? (
                     <Marker position={selectedCoordinates} icon={SELECTED_POSITION_ICON}>

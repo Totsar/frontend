@@ -1459,3 +1459,36 @@ a {
     margin-bottom: 12px;
     font-size: 0.9rem;
 }
+
+.cluster-wrapper {
+    background: transparent;
+}
+
+.cluster-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: #fff;
+    font-weight: 600;
+    border: 3px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.cluster-small {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #4776e6, #8e54e9);
+}
+
+.cluster-medium {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, #f7971e, #ffd200);
+}
+
+.cluster-large {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #ff0844, #ffb199);
+}
