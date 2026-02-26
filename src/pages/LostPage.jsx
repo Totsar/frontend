@@ -9,6 +9,7 @@ import ItemDetailModal from "../components/items/ItemDetailModal";
 import { useAuth } from "../context/AuthContext";
 import { itemService } from "../services/itemService";
 import tagOptions from "../data/tagOptions.json";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 const DEFAULT_CENTER = [35.7036, 51.3515];
 const MAP_REPORT_LONG_PRESS_MS = 700;
@@ -57,6 +58,7 @@ const LostPage = () => {
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [error, setError] = useState("");
     const [availableTags, setAvailableTags] = useState(() => uniqueTags([...tagOptions, "other"]));
+    const online = useOnlineStatus();
 
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(query), 300);
@@ -187,6 +189,7 @@ const LostPage = () => {
     return (
         <div className="page">
             <Header />
+            {!online && <div className="offline-banner">You are offline!</div>}
 
             <main className="page-content">
                 <div className="container lost-page">

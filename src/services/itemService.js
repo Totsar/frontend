@@ -1,4 +1,7 @@
 import { authenticatedRequestJson, optionalAuthenticatedRequestJson } from "./apiClient";
+import { cacheGet, cacheSet } from "../utils/cache";
+
+const CACHE_TTL_MS = 1000 * 60 * 30;
 
 const isFile = (value) => typeof File !== "undefined" && value instanceof File;
 
@@ -43,10 +46,35 @@ export const itemService = {
             }
         }
         const suffix = query.toString() ? `?${query}` : "";
-        return optionalAuthenticatedRequestJson({
-            path: `/api/item${suffix}`,
-            fallbackError: "Failed to load items",
-        });
+
+        const cacheKey = `items:list:${query.toString() || "all"}`;
+        const now = Date.now();
+
+        try {
+            const data = await optionalAuthenticatedRequestJson({
+                path: `/api/item${suffix}`,
+                fallbackError: "Failed to load items",
+            });
+
+            await cacheSet(cacheKey, {
+                data,
+                cachedAt: now,
+            });
+
+            return data;
+        } catch (error) {
+            const cached = await cacheGet(cacheKey);
+            if (cached?.data) {
+                const isFresh = now - cached.cachedAt <= CACHE_TTL_MS;
+                return {
+                    ...cached.data,
+                    _fromCache: true,
+                    _cachedAt: cached.cachedAt,
+                    _cacheFresh: isFresh,
+                };
+            }
+            throw error;
+        }
     },
 
     async getItem(itemId) {
